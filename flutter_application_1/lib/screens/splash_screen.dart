@@ -13,7 +13,6 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnim;
-  late Animation<double> _scaleAnim;
 
   @override
   void initState() {
@@ -24,9 +23,6 @@ class _SplashScreenState extends State<SplashScreen>
     )..forward();
 
     _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-    _scaleAnim = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
-    );
 
     Timer(const Duration(seconds: 3), () {
       Navigator.of(context).pushReplacement(
@@ -61,30 +57,6 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Glow effect di belakang icon
-                  ScaleTransition(
-                    scale: _scaleAnim,
-                    child: Container(
-                      width: 130,
-                      height: 130,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFD4AF37).withAlpha(80),
-                            blurRadius: 40,
-                            spreadRadius: 10,
-                          ),
-                        ],
-                      ),
-                      child: Image.asset(
-                        'assets/icon.png',
-                        width: 130,
-                        height: 130,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
                   const Text(
                     'BODYBUILDER CALORIE',
                     style: TextStyle(
