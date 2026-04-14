@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'calorie_tracker_screen.dart';
 import 'profile_screen.dart';
+import 'ai_coach_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -25,7 +26,8 @@ class _MainScreenState extends State<MainScreen> {
   List<Widget> get _screens => [
     const HomeScreen(),
     const CalorieTrackerScreen(),
-    const ProfileScreen(),
+    const AiCoachScreen(), // Tab 3: AI Coach
+    const ProfileScreen(), // Tab 4: Profil
   ];
   
   void _onItemTapped(int index) {
@@ -50,6 +52,10 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.local_fire_department),
             label: 'Kalori',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.smart_toy),
+            label: 'Coach',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
