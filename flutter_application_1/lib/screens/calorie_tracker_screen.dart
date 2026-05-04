@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
@@ -7,6 +9,10 @@ import 'package:provider/provider.dart';
 import '../models/calorie_provider.dart';
 import '../models/calorie_entry.dart';
 import '../utils/notification_helper.dart';
+import '../services/groq_service.dart';
+import '../services/openfoodfacts_service.dart';
+import 'package:simple_barcode_scanner/simple_barcode_scanner.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CalorieTrackerScreen extends StatefulWidget {
   const CalorieTrackerScreen({super.key});
@@ -16,53 +22,12 @@ class CalorieTrackerScreen extends StatefulWidget {
 }
 
 class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
-  int _targetCalories = 2500; // Default target
   bool _notificationsEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
     _loadNotificationSettings();
-  }
-
-  Future<void> _loadUserProfile() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final hasProfile = prefs.getBool('has_profile') ?? false;
-
-      if (hasProfile) {
-        // Baca data profil
-        final name = prefs.getString('name') ?? '';
-        final age = prefs.getInt('age') ?? 0;
-        final weight = prefs.getDouble('weight') ?? 0;
-        final height = prefs.getDouble('height') ?? 0;
-        final gender = prefs.getString('gender') ?? 'Pria';
-        final activityLevel = prefs.getString('activity_level') ?? 'Sedang';
-        final goal = prefs.getString('goal') ?? 'Bulking';
-
-        // Buat objek UserProfile
-        final userProfile = UserProfile(
-          name: name,
-          age: age,
-          weight: weight,
-          height: height,
-          gender: gender,
-          activityLevel: activityLevel,
-          goal: goal,
-        );
-
-        // Gunakan FuzzyLogic untuk menghitung kebutuhan kalori
-        final fuzzyLogic = FuzzyLogic();
-        final calculatedCalories = fuzzyLogic.calculateCalories(userProfile);
-
-        setState(() {
-          _targetCalories = calculatedCalories;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading profile: $e');
-    }
   }
 
   @override
@@ -83,22 +48,383 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
       ),
       body: Column(
         children: [
-          _buildCalorieSummary(totalCalories),
+          _buildCalorieSummary(totalCalories, calorieProvider.targetCalories),
           const Divider(height: 1),
           Expanded(
             child: entries.isEmpty ? _buildEmptyState() : _buildFoodList(entries),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddFoodDialog,
-        child: const Icon(Icons.add),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: 'ai_cam_btn',
+            onPressed: _showAIScannerOptions,
+            backgroundColor: const Color(0xFF00B4DB),
+            child: const Icon(Icons.camera_alt, color: Colors.white),
+          ),
+          const SizedBox(width: 16),
+          FloatingActionButton(
+            heroTag: 'scan_btn',
+            onPressed: () async {
+              var res = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SimpleBarcodeScannerPage(),
+                ),
+              );
+              if (res is String && res != '-1') {
+                _processBarcodeScan(res);
+              }
+            },
+            backgroundColor: const Color(0xFFD4AF37),
+            child: const Icon(Icons.qr_code_scanner, color: Colors.black),
+          ),
+          const SizedBox(width: 16),
+          FloatingActionButton(
+            heroTag: 'add_btn',
+            onPressed: _showAddFoodDialog,
+            child: const Icon(Icons.add),
+          ),
+        ],
+      ),
+    );
+  }
+  Future<void> _showAIScannerOptions() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('Pilih Sumber Foto', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Ambil dari Kamera'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _scanFoodWithAI(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Pilih dari Galeri'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _scanFoodWithAI(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _scanFoodWithAI(ImageSource source) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: source, 
+      imageQuality: 50,
+      maxWidth: 800,
+      maxHeight: 800,
+    );
+
+    if (image == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('AI sedang menganalisis makanan...'),
+          ],
+        ),
+      ),
+    );
+
+    final result = await GroqService().analyzeFoodImage(File(image.path));
+    
+    // ignore: use_build_context_synchronously
+    Navigator.pop(context); // Tutup loading dialog
+
+    if (result.containsKey('error')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal: ${result['error']}'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    _showAddFoodDialogWithPrefill(
+      result['foodName'] ?? 'Makanan Tak Dikenal',
+      (result['calories'] is num) ? (result['calories'] as num).toInt() : 0,
+      (result['protein'] is num) ? (result['protein'] as num).toInt() : 0,
+      (result['carbs'] is num) ? (result['carbs'] as num).toInt() : 0,
+      (result['fats'] is num) ? (result['fats'] as num).toInt() : 0,
+    );
+  }
+
+  Future<void> _processBarcodeScan(String barcode) async {
+    // Tampilkan indikator loading saat memanggil API
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Mengecek database OpenFoodFacts...'),
+          ],
+        ),
+      ),
+    );
+
+    final service = OpenFoodFactsService();
+    final result = await service.getProductByBarcode(barcode);
+
+    // Tutup dialog loading
+    // ignore: use_build_context_synchronously
+    if (mounted) Navigator.pop(context);
+
+    if (result == null) {
+      // Produk tidak ditemukan
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Produk Kosong'),
+          content: Text('Barcode ($barcode) tidak dikenali atau belum terdaftar di OpenFoodFacts dunia.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Tutup'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showAddFoodDialog(); // Buka form manual
+              },
+              child: const Text('Isi Manual'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Produk ditemukan! Langsung buka dialog prefill yang bisa diedit dan ada tombol AI-nya.
+      _showAddFoodDialogWithPrefill(
+        result['name'] as String,
+        result['calories'] as int,
+        result['protein'] as int,
+        result['carbs'] as int,
+        result['fats'] as int,
+        nutriScore: result['nutriScore'] as String?,
+      );
+    }
+  }
+
+  void _showAddFoodDialogWithPrefill(String name, int cals, int prot, int carbs, int fats, {String? nutriScore}) {
+    final nameController = TextEditingController(text: name);
+    final caloriesController = TextEditingController(text: cals.toString());
+    final proteinController = TextEditingController(text: prot.toString());
+    final carbsController = TextEditingController(text: carbs.toString());
+    final fatsController = TextEditingController(text: fats.toString());
+    final portionController = TextEditingController(text: '1.0');
+
+    int baseCals = cals;
+    int baseProt = prot;
+    int baseCarbs = carbs;
+    int baseFats = fats;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Konfirmasi Hasil Scan'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (nutriScore != null && nutriScore != '?') ...[
+                    Container(
+                      width: double.infinity,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: nutriScore == 'A' ? const Color(0xFF038141) :
+                               nutriScore == 'B' ? const Color(0xFF85BB2F) :
+                               nutriScore == 'C' ? const Color(0xFFFECB02) :
+                               nutriScore == 'D' ? const Color(0xFFEE8100) :
+                               nutriScore == 'E' ? const Color(0xFFE63E11) : Colors.grey,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('Nutri-Score: $nutriScore', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  const Text('Anda bisa menyesuaikan porsi dan data sebelum menyimpan.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Nama Makanan', border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: portionController,
+                          decoration: const InputDecoration(
+                            labelText: 'Porsi (X)', 
+                            border: OutlineInputBorder(),
+                            hintText: 'Misal: 0.5 atau 2',
+                            prefixIcon: Icon(Icons.calculate_outlined, size: 20),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          onChanged: (val) {
+                            final p = double.tryParse(val) ?? 1.0;
+                            setDialogState(() {
+                              caloriesController.text = (baseCals * p).round().toString();
+                              proteinController.text = (baseProt * p).round().toString();
+                              carbsController.text = (baseCarbs * p).round().toString();
+                              fatsController.text = (baseFats * p).round().toString();
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          gradient: const LinearGradient(colors: [Color(0xFFCD7F32), Color(0xFFFFD700)]),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.auto_awesome, color: Colors.black),
+                          tooltip: 'Isi Kalori via AI',
+                          onPressed: () async {
+                            if (nameController.text.trim().isEmpty) return;
+                            showDialog(
+                              context: context, 
+                              barrierDismissible: false,
+                              builder: (_) => const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
+                            );
+                            try {
+                              final foodName = nameController.text.trim();
+                              final prompt = 'Kamu adalah database nutrisi makanan terpercaya. Estimasi kandungan gizi "${foodName}" berdasarkan PORSI UMUM/WAJAR yang biasa dikonsumsi sekali makan (bukan per 100g). Balas HANYA JSON valid: {"calories": 200, "protein": 5, "carbs": 30, "fats": 8}. Nilai harus integer.';
+                              final response = await GroqService().getChatResponse([
+                                {'role': 'system', 'content': 'Kamu adalah ahli gizi dan database nutrisi. Selalu balas dengan satu JSON valid saja, tidak ada teks lain sama sekali.'},
+                                {'role': 'user', 'content': prompt}
+                              ]);
+                              Navigator.pop(context); // Tutup loading
+                              final regex = RegExp(r'\{.*?\}', dotAll: true);
+                              final match = regex.firstMatch(response);
+                              if (match != null) {
+                                final data = jsonDecode(match.group(0)!);
+                                setDialogState(() {
+                                  baseCals = data['calories'];
+                                  baseProt = data['protein'];
+                                  baseCarbs = data['carbs'];
+                                  baseFats = data['fats'];
+                                  
+                                  final p = double.tryParse(portionController.text) ?? 1.0;
+                                  caloriesController.text = (baseCals * p).round().toString();
+                                  proteinController.text = (baseProt * p).round().toString();
+                                  carbsController.text = (baseCarbs * p).round().toString();
+                                  fatsController.text = (baseFats * p).round().toString();
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('AI Berhasil mengestimasi nutrisi!'), backgroundColor: Colors.green));
+                              }
+                            } catch (e) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koneksi AI gagal.')));
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: caloriesController,
+                    decoration: const InputDecoration(labelText: 'Kalori (kcal)', border: OutlineInputBorder()),
+                    keyboardType: TextInputType.number,
+                    onChanged: (val) => baseCals = (int.tryParse(val) ?? 0) ~/ (double.tryParse(portionController.text) ?? 1.0).clamp(0.1, 99.0),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: proteinController,
+                          decoration: const InputDecoration(labelText: 'P', border: OutlineInputBorder()),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: TextField(
+                          controller: carbsController,
+                          decoration: const InputDecoration(labelText: 'C', border: OutlineInputBorder()),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: TextField(
+                          controller: fatsController,
+                          decoration: const InputDecoration(labelText: 'F', border: OutlineInputBorder()),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  context.read<CalorieProvider>().addFood(
+                    nameController.text,
+                    int.tryParse(caloriesController.text) ?? baseCals,
+                    protein: int.tryParse(proteinController.text) ?? baseProt,
+                    carbs: int.tryParse(carbsController.text) ?? baseCarbs,
+                    fats: int.tryParse(fatsController.text) ?? baseFats,
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('${nameController.text} berhasil ditambahkan! 🚀')),
+                  );
+                },
+                child: const Text('Simpan'),
+              ),
+            ],
+          );
+        }
       ),
     );
   }
 
-  Widget _buildCalorieSummary(int totalCalories) {
-    final remainingCalories = _targetCalories - totalCalories;
+
+  Widget _buildCalorieSummary(int totalCalories, int targetCalories) {
+    final remainingCalories = targetCalories - totalCalories;
     final isOverCalories = remainingCalories < 0;
 
     return Card(
@@ -117,28 +443,61 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildCalorieInfo('Target', '$_targetCalories', Colors.blue),
+                _buildCalorieInfo('Target', '$targetCalories', const Color(0xFF00B4DB)),
                 _buildCalorieInfo(
                   'Dikonsumsi',
                   '$totalCalories',
-                  Colors.green,
+                  const Color(0xFFD4AF37),
                 ),
                 _buildCalorieInfo(
                   'Sisa',
                   '${remainingCalories.abs()}',
-                  isOverCalories ? Colors.red : Colors.orange,
+                  isOverCalories ? const Color(0xFFCF6679) : const Color(0xFF38EF7D),
                   prefix: isOverCalories ? '+' : '',
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            LinearProgressIndicator(
-              value: (_targetCalories > 0) ? (totalCalories / _targetCalories).clamp(0.0, 1.0) : 0,
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(
-                totalCalories > _targetCalories ? Colors.red : Colors.green,
-              ),
-              minHeight: 10,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final progress = (targetCalories > 0)
+                    ? (totalCalories / targetCalories).clamp(0.0, 1.0)
+                    : 0.0;
+                return Stack(
+                  children: [
+                    Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 800),
+                      curve: Curves.easeOutQuart,
+                      height: 10,
+                      width: constraints.maxWidth * progress,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        gradient: LinearGradient(
+                          colors: totalCalories > targetCalories
+                              ? [const Color(0xFFCF6679), const Color(0xFFFF6B9D)]
+                              : [const Color(0xFFCD7F32), const Color(0xFFFFD700)],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (totalCalories > targetCalories
+                                    ? const Color(0xFFCF6679)
+                                    : const Color(0xFFFFD700))
+                                .withOpacity(0.4),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -199,21 +558,142 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            title: Text(entry.foodName),
-            subtitle: Text('${entry.calories} kcal | P: ${entry.protein}g | C: ${entry.carbs}g | F: ${entry.fats}g'),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD4AF37).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.restaurant, color: Color(0xFFD4AF37), size: 20),
+            ),
+            title: Text(
+              entry.foodName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              '${entry.calories} kcal  •  P: ${entry.protein}g  •  C: ${entry.carbs}g  •  L: ${entry.fats}g',
+              style: const TextStyle(color: Color(0xFFBBAA88), fontSize: 12),
+            ),
             trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () {
-                if (entry.id != null) {
-                  context.read<CalorieProvider>().removeFood(entry.id!);
-                }
-              },
+              icon: const Icon(Icons.delete_outline, color: Color(0xFFCF6679)),
+              tooltip: 'Hapus makanan',
+              onPressed: () => _confirmDeleteFood(context, entry),
             ),
           ),
         );
       },
     );
   }
+
+  void _confirmDeleteFood(BuildContext context, CalorieEntry entry) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Makanan?'),
+        content: Text('Apakah kamu yakin ingin menghapus "${entry.foodName}" (${entry.calories} kcal)?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (entry.id != null) {
+                context.read<CalorieProvider>().removeFood(entry.id!);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFCF6679),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditFoodDialog(CalorieEntry entry) {
+    final nameController = TextEditingController(text: entry.foodName);
+    final caloriesController = TextEditingController(text: entry.calories.toString());
+    final proteinController = TextEditingController(text: entry.protein.toString());
+    final carbsController = TextEditingController(text: entry.carbs.toString());
+    final fatsController = TextEditingController(text: entry.fats.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Makanan'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Nama Makanan'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: caloriesController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Kalori (kcal)'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: proteinController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Protein (g)'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: carbsController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Karbo (g)'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: fatsController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Lemak (g)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final updatedEntry = CalorieEntry(
+                id: entry.id,
+                date: entry.date,
+                foodName: nameController.text,
+                calories: int.tryParse(caloriesController.text) ?? 0,
+                protein: int.tryParse(proteinController.text) ?? 0,
+                carbs: int.tryParse(carbsController.text) ?? 0,
+                fats: int.tryParse(fatsController.text) ?? 0,
+              );
+              context.read<CalorieProvider>().updateFood(updatedEntry);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Simpan Perubahan'),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   void _showAddFoodDialog() {
     final nameController = TextEditingController();
@@ -305,11 +785,19 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
                                               caloriesController.text =
                                                   calories.toString();
                                               
-                                              // Estimasi sederhana makronutrisi harian
-                                              proteinController.text = (calories * 0.30 / 4).round().toString();
-                                              carbsController.text = (calories * 0.50 / 4).round().toString();
-                                              fatsController.text = (calories * 0.20 / 9).round().toString();
-                                            });
+                                              // Menggunakan makronutrisi nyata dari database
+                                              final macros = FoodDatabase.getMacros(food);
+                                              if (macros != null) {
+                                                proteinController.text = macros['protein'].toString();
+                                                carbsController.text = macros['carbs'].toString();
+                                                fatsController.text = macros['fats'].toString();
+                                              } else {
+                                                // Fallback ke 0 jika tidak ada
+                                                proteinController.text = '0';
+                                                carbsController.text = '0';
+                                                fatsController.text = '0';
+                                              }
+                                            }); // Close setState
                                           },
                                           child: Container(
                                             color:
@@ -387,14 +875,73 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
                           const Text('Atau masukkan makanan manual:'),
                           const SizedBox(height: 16),
 
-                          // Input manual
-                          TextField(
-                            controller: nameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Nama Makanan',
-                              border: OutlineInputBorder(),
-                              hintText: 'Masukkan nama makanan',
-                            ),
+                          // Input manual & AI Magic Request
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: nameController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Nama Makanan',
+                                    border: OutlineInputBorder(),
+                                    hintText: 'Cth: Sate Ayam 5 tusuk',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  gradient: const LinearGradient(colors: [Color(0xFFCD7F32), Color(0xFFFFD700)]),
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.auto_awesome, color: Colors.black),
+                                  tooltip: 'Isi Kalori via AI',
+                                  onPressed: () async {
+                                    if (nameController.text.trim().isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ketik nama makanan dulu!')));
+                                      return;
+                                    }
+                                    
+                                    showDialog(
+                                      context: context, 
+                                      barrierDismissible: false,
+                                      builder: (_) => const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)))
+                                    );
+                                    
+                                    try {
+                                      final prompt = 'Estimasi kalori & makro dari "${nameController.text}". Balas HANYA dengan JSON valid, tanpa teks pembuka/penutup. Contoh: {"calories": 100, "protein": 10, "carbs": 20, "fats": 5}. Harus berisi integer.';
+                                      final response = await GroqService().getChatResponse([
+                                        {'role': 'user', 'content': prompt}
+                                      ]);
+                                      
+                                      Navigator.pop(context); // Tutup loading dialog
+                                      
+                                      final regex = RegExp(r'\{.*?\}', dotAll: true);
+                                      final match = regex.firstMatch(response);
+                                      if (match != null) {
+                                        final jsonStr = match.group(0);
+                                        final Map<String, dynamic> data = jsonDecode(jsonStr!);
+                                        setState(() {
+                                          selectedCalories = (data['calories'] is num) ? data['calories'].toInt() : 0;
+                                          caloriesController.text = data['calories'].toString();
+                                          proteinController.text = data['protein'].toString();
+                                          carbsController.text = data['carbs'].toString();
+                                          fatsController.text = data['fats'].toString();
+                                          selectedFood = null;
+                                        });
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('AI Berhasil mengestimasi nutrisi!'), backgroundColor: Colors.green));
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal menerjemahkan respons AI.')));
+                                      }
+                                    } catch (e) {
+                                      Navigator.pop(context); // Tutup loading dialog
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Koneksi AI gagal atau waktu habis.')));
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           TextField(
@@ -454,26 +1001,47 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
                     ),
                       ElevatedButton(
                       onPressed: () {
-                        if (nameController.text.isNotEmpty) {
-                          context.read<CalorieProvider>().addFood(
-                            nameController.text,
-                            selectedFood != null
-                                ? selectedCalories
-                                : (int.tryParse(caloriesController.text) ?? 0),
-                            protein: int.tryParse(proteinController.text) ?? 0,
-                            carbs: int.tryParse(carbsController.text) ?? 0,
-                            fats: int.tryParse(fatsController.text) ?? 0,
-                          );
-                          Navigator.pop(context);
-                        } else {
-                          // Tampilkan pesan error jika nama makanan kosong
+                        final name = nameController.text.trim();
+                        final calories = selectedFood != null
+                            ? selectedCalories
+                            : (int.tryParse(caloriesController.text) ?? 0);
+
+                        // Validasi: nama tidak boleh kosong
+                        if (name.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Nama makanan tidak boleh kosong'),
-                              backgroundColor: Colors.red,
+                              backgroundColor: Color(0xFFCF6679),
                             ),
                           );
+                          return;
                         }
+
+                        // Validasi: kalori harus lebih dari 0
+                        if (calories <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Kalori harus lebih dari 0 kcal'),
+                              backgroundColor: Color(0xFFCF6679),
+                            ),
+                          );
+                          return;
+                        }
+
+                        context.read<CalorieProvider>().addFood(
+                          name,
+                          calories,
+                          protein: int.tryParse(proteinController.text) ?? 0,
+                          carbs: int.tryParse(carbsController.text) ?? 0,
+                          fats: int.tryParse(fatsController.text) ?? 0,
+                        );
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('"$name" ditambahkan ($calories kcal)'),
+                            backgroundColor: const Color(0xFF1A1A1A),
+                          ),
+                        );
                       },
                       child: const Text('Tambah'),
                     ),

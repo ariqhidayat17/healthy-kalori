@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../models/calorie_provider.dart';
 import 'main_screen.dart';
+import '../utils/notification_helper.dart';
+import 'progress_photo_screen.dart';
+import 'weight_log_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onProfileComplete;
@@ -22,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _gender = 'Pria';
   String _activityLevel = 'Sedang';
   String _goal = 'Bulking';
+  bool _notificationsEnabled = false;
   
   // Controller untuk form
   final _nameController = TextEditingController();
@@ -34,6 +40,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     // Muat data profil yang tersimpan
     _loadSavedProfile();
+  }
+
+  InputDecoration _buildInputDecoration(String label, IconData icon, [String? suffix]) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Color(0xFFBBAA88)),
+      prefixIcon: Icon(icon, color: const Color(0xFFD4AF37)),
+      suffixText: suffix,
+      suffixStyle: const TextStyle(color: Color(0xFFD4AF37)),
+      filled: true,
+      fillColor: const Color(0xFF1E1E1E),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFD4AF37), width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFCF6679)),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFCF6679), width: 2),
+      ),
+    );
   }
   
   Future<void> _loadSavedProfile() async {
@@ -50,6 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _gender = prefs.getString('gender') ?? 'Pria';
           _activityLevel = prefs.getString('activity_level') ?? 'Sedang';
           _goal = prefs.getString('goal') ?? 'Bulking';
+          _notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
           
           // Update controllers
           _nameController.text = _name;
@@ -88,12 +123,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const Center(
                 child: CircleAvatar(
                   radius: 50,
-                  backgroundColor: Colors.blue,
-                  child: Icon(Icons.person, size: 50, color: Colors.white),
+                  backgroundColor: Color(0xFFD4AF37),
+                  child: Icon(Icons.person, size: 50, color: Color(0xFF111111)),
                 ),
               ),
               const SizedBox(height: 24),
               
+              // Card: Log Berat Badan
+              Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFD4AF37),
+                    child: Icon(Icons.monitor_weight_outlined, color: Colors.black),
+                  ),
+                  title: const Text('Log Berat Badan'),
+                  subtitle: const Text('Pantau tren berat & BMI kamu'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const WeightLogScreen()),
+                    );
+                  },
+                ),
+              ),
+              // Card: Log Progres Foto
+              Card(
+                margin: const EdgeInsets.only(bottom: 24),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFD4AF37),
+                    child: Icon(Icons.fitness_center, color: Colors.black),
+                  ),
+                  title: const Text('Log Progres Fisik Badan'),
+                  subtitle: const Text('Simpan foto Before-After bulananmu'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProgressPhotoScreen()),
+                    );
+                  },
+                ),
+              ),
+
               // Informasi Dasar
               const Text(
                 'Informasi Dasar',
@@ -103,11 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nama',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
+                decoration: _buildInputDecoration('Nama', Icons.person),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Nama tidak boleh kosong';
@@ -122,11 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               
               // Jenis Kelamin
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Jenis Kelamin',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.wc),
-                ),
+                decoration: _buildInputDecoration('Jenis Kelamin', Icons.wc),
                 value: _gender,
                 items: ['Pria', 'Wanita'].map((gender) {
                   return DropdownMenuItem(
@@ -151,12 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _ageController,
-                      decoration: const InputDecoration(
-                        labelText: 'Usia',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.calendar_today),
-                        suffixText: 'tahun',
-                      ),
+                      decoration: _buildInputDecoration('Usia', Icons.calendar_today, 'tahun'),
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -173,12 +236,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _weightController,
-                      decoration: const InputDecoration(
-                        labelText: 'Berat Badan',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.monitor_weight),
-                        suffixText: 'kg',
-                      ),
+                      decoration: _buildInputDecoration('Berat Badan', Icons.monitor_weight, 'kg'),
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -195,12 +253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _heightController,
-                      decoration: const InputDecoration(
-                        labelText: 'Tinggi Badan',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.height),
-                        suffixText: 'cm',
-                      ),
+                      decoration: _buildInputDecoration('Tinggi Badan', Icons.height, 'cm'),
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -219,11 +272,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               
               // Level Aktivitas
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Level Aktivitas',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.directions_run),
-                ),
+                decoration: _buildInputDecoration('Level Aktivitas', Icons.directions_run),
                 value: _activityLevel,
                 items: const [
                   DropdownMenuItem(value: 'Ringan', child: Text('Ringan (1-3 hari/minggu)')),
@@ -244,11 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               
               // Goal Fitness
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Goal Fitness',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.fitness_center),
-                ),
+                decoration: _buildInputDecoration('Goal Fitness', Icons.fitness_center),
                 value: _goal,
                 items: const [
                   DropdownMenuItem(value: 'Bulking', child: Text('Bulking (Menambah Massa Otot)')),
@@ -262,6 +307,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 onSaved: (value) {
                   _goal = value!;
+                },
+              ),
+              const SizedBox(height: 24),
+              const Divider(color: Color(0xFF2E2A1E)),
+              const SizedBox(height: 16),
+              const Text(
+                'Pengaturan Notifikasi',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFD4AF37)),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Pengingat Harian (Makan & Gym)'),
+                subtitle: const Text('Menerima pengingat pintar teratur pada pagi, sore, dan malam hari.'),
+                value: _notificationsEnabled,
+                activeColor: const Color(0xFFD4AF37),
+                onChanged: (bool value) async {
+                  if (value) {
+                    final granted = await NotificationHelper.requestPermission();
+                    if (!granted && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Izin notifikasi tidak diberikan.')),
+                      );
+                      return;
+                    }
+                  }
+                  setState(() {
+                    _notificationsEnabled = value;
+                  });
                 },
               ),
               const SizedBox(height: 32),
@@ -288,8 +361,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         await prefs.setString('gender', _gender);
                         await prefs.setString('activity_level', _activityLevel);
                         await prefs.setString('goal', _goal);
+                        await prefs.setBool('notifications_enabled', _notificationsEnabled);
+
+                        if (_notificationsEnabled) {
+                          await NotificationHelper.scheduleDailyNotifications();
+                        } else {
+                          await NotificationHelper.cancelAllNotifications();
+                        }
                         
                         if (context.mounted) {
+                          // Hitung ulang target kalori otomatis berdasarkan profil yang baru diupdate
+                          await context.read<CalorieProvider>().calculateTargets();
+
                           // Tampilkan pesan sukses
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Profil berhasil disimpan!')),
@@ -314,7 +397,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       }
                     }
                   },
-                  child: const Text('Simpan Profil'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD4AF37),
+                    foregroundColor: const Color(0xFF0D0D0D),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Simpan Profil', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
             ],

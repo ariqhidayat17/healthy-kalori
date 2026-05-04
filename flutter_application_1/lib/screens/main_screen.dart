@@ -3,6 +3,7 @@ import 'home_screen.dart';
 import 'calorie_tracker_screen.dart';
 import 'profile_screen.dart';
 import 'ai_coach_screen.dart';
+import 'stats_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -26,8 +27,9 @@ class _MainScreenState extends State<MainScreen> {
   List<Widget> get _screens => [
     const HomeScreen(),
     const CalorieTrackerScreen(),
-    const AiCoachScreen(), // Tab 3: AI Coach
-    const ProfileScreen(), // Tab 4: Profil
+    const StatsScreen(), // Tab 3: Statistik
+    const AiCoachScreen(), // Tab 4: AI Coach
+    const ProfileScreen(), // Tab 5: Profil
   ];
   
   void _onItemTapped(int index) {
@@ -54,6 +56,10 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Kalori',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: 'Statistik',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.smart_toy),
             label: 'Coach',
           ),
@@ -65,6 +71,7 @@ class _MainScreenState extends State<MainScreen> {
         currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed, // Pastikan 5 tab tidak shifting
         onTap: _onItemTapped,
       ),
     );
