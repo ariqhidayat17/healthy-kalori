@@ -1,6 +1,8 @@
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/splash_screen.dart';
 import 'screens/debug_overlay.dart';
 import 'models/calorie_provider.dart';
@@ -8,6 +10,8 @@ import 'utils/notification_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Muat environment variables dari .env
+  await dotenv.load(fileName: '.env');
   await NotificationHelper.init();
   runApp(
     MultiProvider(
@@ -25,7 +29,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Bodybuilder Calorie Control',
+      title: 'Your AI Coach',
       theme: ThemeData(
         brightness: Brightness.dark,
         colorScheme: ColorScheme.dark(
@@ -133,9 +137,9 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto',
       ),
-      home: DebugOverlay(
-        child: const SplashScreen(),
-      ),
+      home: kDebugMode
+          ? DebugOverlay(child: const SplashScreen())
+          : const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
