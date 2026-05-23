@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/calorie_provider.dart';
 import '../utils/database_helper.dart';
 import '../models/weight_entry.dart';
+import '../services/pdf_report_service.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -135,6 +136,18 @@ class _StatsScreenState extends State<StatsScreen> {
       appBar: AppBar(
         title: const Text('Statistik Nutrisi'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf, color: Color(0xFFD4AF37)),
+            tooltip: 'Cetak Laporan PDF',
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Menyiapkan Laporan PDF...'), duration: Duration(seconds: 10)), // Tambah durasi biar gak hilang cepat
+              );
+              await PdfReportService.generateAndShareWeeklyReport(context);
+            },
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)))

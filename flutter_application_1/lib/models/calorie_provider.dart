@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/database_helper.dart';
 import 'calorie_entry.dart';
+import 'fuzzy_logic.dart';
+import 'user_profile.dart';
 
 class CalorieProvider extends ChangeNotifier {
   List<CalorieEntry> _entries = [];
@@ -52,33 +54,20 @@ class CalorieProvider extends ChangeNotifier {
     final String activityLevel = prefs.getString('activity_level') ?? 'Sedang';
     final String goal = prefs.getString('goal') ?? 'Bulking';
 
-    // 1. Calculate BMR (Mifflin-St Jeor Equation)
-    double bmr;
-    if (gender == 'Pria') {
-      bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
-    } else {
-      bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
-    }
-
-    // 2. Activity Multiplier
-    double multiplier = 1.2;
-    switch (activityLevel) {
-      case 'Ringan': multiplier = 1.375; break;
-      case 'Sedang': multiplier = 1.55; break;
-      case 'Berat': multiplier = 1.725; break;
-      case 'Sangat Berat': multiplier = 1.9; break;
-    }
-    double tdee = bmr * multiplier;
-
-    // 3. Goal Adjustment
-    double targetKcal = tdee;
-    if (goal == 'Bulking') {
-      targetKcal += 300; // Surplus
-    } else if (goal == 'Cutting') {
-      targetKcal -= 500; // Defisit
-    }
+    // Create Profile object for Fuzzy Logic
+    final profile = UserProfile(
+      name: prefs.getString('name') ?? 'User',
+      age: age,
+      weight: weight,
+      height: height,
+      gender: gender,
+      activityLevel: activityLevel,
+      goal: goal,
+    );
     
-    _targetCalories = targetKcal.round();
+    // Use Fuzzy Logic to calculate targets
+    final fuzzy = FuzzyLogic();
+    _targetCalories = fuzzy.calculateCalories(profile);
 
     // 4. Macro Distribution (Protein 2.2g/kg, Fat 25%, rest Carbs)
     _targetProtein = (weight * 2.2).round(); // Bodybuilder rule of thumb
