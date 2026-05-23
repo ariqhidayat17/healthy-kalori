@@ -6,6 +6,7 @@ import 'main_screen.dart';
 import '../utils/notification_helper.dart';
 import 'progress_photo_screen.dart';
 import 'weight_log_screen.dart';
+import '../services/backup_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onProfileComplete;
@@ -192,81 +193,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
               
-              // Jenis Kelamin
-              DropdownButtonFormField<String>(
-                decoration: _buildInputDecoration('Jenis Kelamin', Icons.wc),
-                value: _gender,
-                items: ['Pria', 'Wanita'].map((gender) {
-                  return DropdownMenuItem(
-                    value: gender,
-                    child: Text(gender),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _gender = value ?? 'Pria';
-                  });
-                },
-                onSaved: (value) {
-                  _gender = value ?? 'Pria';
-                },
+              // Usia & Jenis Kelamin
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _ageController,
+                      decoration: _buildInputDecoration('Usia', Icons.calendar_today, 'thn'),
+                      keyboardType: TextInputType.number,
+                      validator: (value) => (value == null || value.isEmpty) ? 'Wajib' : null,
+                      onSaved: (value) => _age = int.tryParse(value!) ?? 0,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: DropdownButtonFormField<String>(
+                      decoration: _buildInputDecoration('Gender', Icons.wc),
+                      value: _gender,
+                      items: ['Pria', 'Wanita'].map((gender) => DropdownMenuItem(value: gender, child: Text(gender))).toList(),
+                      onChanged: (value) => setState(() => _gender = value ?? 'Pria'),
+                      onSaved: (value) => _gender = value ?? 'Pria',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Bagian: Dimensi Tubuh (Berat & Tinggi)
+              const Text(
+                'Dimensi Tubuh',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              
-              // Usia, Berat, dan Tinggi
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
-                      controller: _ageController,
-                      decoration: _buildInputDecoration('Usia', Icons.calendar_today, 'tahun'),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Wajib diisi';
-                        }
-                        return null;
-                      },
-                      onSaved: (value) {
-                        _age = int.tryParse(value!) ?? 0;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextFormField(
                       controller: _weightController,
-                      decoration: _buildInputDecoration('Berat Badan', Icons.monitor_weight, 'kg'),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Wajib diisi';
-                        }
-                        return null;
-                      },
-                      onSaved: (value) {
-                        _weight = double.tryParse(value!) ?? 0;
-                      },
+                      decoration: _buildInputDecoration('Berat Badan', Icons.monitor_weight_outlined, 'kg'),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) => (value == null || value.isEmpty) ? 'Wajib' : null,
+                      onSaved: (value) => _weight = double.tryParse(value!) ?? 0,
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: TextFormField(
                       controller: _heightController,
                       decoration: _buildInputDecoration('Tinggi Badan', Icons.height, 'cm'),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Wajib diisi';
-                        }
-                        return null;
-                      },
-                      onSaved: (value) {
-                        _height = double.tryParse(value!) ?? 0;
-                      },
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) => (value == null || value.isEmpty) ? 'Wajib' : null,
+                      onSaved: (value) => _height = double.tryParse(value!) ?? 0,
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 24),
+
+              // Bagian: Aktivitas & Target
+              const Text(
+                'Aktivitas & Target',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               
@@ -280,34 +269,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   DropdownMenuItem(value: 'Berat', child: Text('Berat (6-7 hari/minggu)')),
                   DropdownMenuItem(value: 'Sangat Berat', child: Text('Sangat Berat (2x sehari)')),
                 ],
-                onChanged: (value) {
-                  setState(() {
-                    _activityLevel = value!;
-                  });
-                },
-                onSaved: (value) {
-                  _activityLevel = value!;
-                },
+                onChanged: (value) => setState(() => _activityLevel = value!),
+                onSaved: (value) => _activityLevel = value!,
               ),
               const SizedBox(height: 16),
-              
+
               // Goal Fitness
               DropdownButtonFormField<String>(
-                decoration: _buildInputDecoration('Goal Fitness', Icons.fitness_center),
+                decoration: _buildInputDecoration('Goal Fitness', Icons.emoji_events_outlined),
                 value: _goal,
                 items: const [
                   DropdownMenuItem(value: 'Bulking', child: Text('Bulking (Menambah Massa Otot)')),
                   DropdownMenuItem(value: 'Cutting', child: Text('Cutting (Menurunkan Lemak)')),
                   DropdownMenuItem(value: 'Maintenance', child: Text('Maintenance (Mempertahankan)')),
                 ],
-                onChanged: (value) {
-                  setState(() {
-                    _goal = value!;
-                  });
-                },
-                onSaved: (value) {
-                  _goal = value!;
-                },
+                onChanged: (value) => setState(() => _goal = value!),
+                onSaved: (value) => _goal = value!,
               ),
               const SizedBox(height: 24),
               const Divider(color: Color(0xFF2E2A1E)),
@@ -332,9 +309,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       return;
                     }
                   }
+                  
                   setState(() {
                     _notificationsEnabled = value;
                   });
+                  
+                  // Langsung simpan dan jadwalkan (Instant Apply)
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('notifications_enabled', value);
+                  
+                  if (value) {
+                    await NotificationHelper.scheduleDailyNotifications();
+                  } else {
+                    await NotificationHelper.cancelAllNotifications();
+                  }
+                  
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          value ? 'Notifikasi Harian Diaktifkan' : 'Notifikasi Dinonaktifkan',
+                        ),
+                        backgroundColor: value ? Colors.green : Colors.orange,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
                 },
               ),
               const SizedBox(height: 32),
@@ -405,6 +405,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: const Text('Simpan Profil', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Menyiapkan file cadangan...')),
+                    );
+                    BackupService.exportDataAsJson(context);
+                  },
+                  icon: const Icon(Icons.backup_outlined, color: Color(0xFFD4AF37)),
+                  label: const Text('Cadangkan Data (JSON)', style: TextStyle(color: Color(0xFFD4AF37))),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFD4AF37)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
             ],
           ),
         ),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class OpenFoodFactsService {
@@ -53,6 +54,8 @@ class OpenFoodFactsService {
         }
       }
       return null; // Status 0 = Produk tidak ditemukan di database
+    } on SocketException {
+      rethrow;
     } catch (e) {
       print('Error OpenFoodFacts: $e');
       return null;

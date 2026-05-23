@@ -17,12 +17,12 @@ class UserProfile {
     required this.goal,
   });
 
-  // Menghitung BMR (Basal Metabolic Rate) menggunakan rumus Harris-Benedict
+  // Menghitung BMR (Basal Metabolic Rate) menggunakan rumus Mifflin-St Jeor
   double calculateBMR() {
     if (gender == 'Pria') {
-      return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+      return (10 * weight) + (6.25 * height) - (5 * age) + 5;
     } else {
-      return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+      return (10 * weight) + (6.25 * height) - (5 * age) - 161;
     }
   }
 

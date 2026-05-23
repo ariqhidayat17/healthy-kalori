@@ -14,6 +14,11 @@ import '../services/openfoodfacts_service.dart';
 import 'package:simple_barcode_scanner/simple_barcode_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 
+// Import widget modular
+import '../widgets/calorie_summary_card.dart';
+import '../widgets/food_list_item.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
 class CalorieTrackerScreen extends StatefulWidget {
   const CalorieTrackerScreen({super.key});
 
@@ -22,13 +27,6 @@ class CalorieTrackerScreen extends StatefulWidget {
 }
 
 class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
-  bool _notificationsEnabled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadNotificationSettings();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,19 +37,16 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tracking Kalori'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: _showSettingsDialog,
-          ),
-        ],
       ),
       body: Column(
         children: [
-          _buildCalorieSummary(totalCalories, calorieProvider.targetCalories),
+          CalorieSummaryCard(
+            totalCalories: totalCalories,
+            targetCalories: calorieProvider.targetCalories,
+          ),
           const Divider(height: 1),
           Expanded(
-            child: entries.isEmpty ? _buildEmptyState() : _buildFoodList(entries),
+            child: entries.isEmpty ? _buildEmptyState(context) : _buildFoodList(entries),
           ),
         ],
       ),
@@ -191,13 +186,14 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
     );
 
     final service = OpenFoodFactsService();
-    final result = await service.getProductByBarcode(barcode);
+    try {
+      final result = await service.getProductByBarcode(barcode);
 
-    // Tutup dialog loading
-    // ignore: use_build_context_synchronously
-    if (mounted) Navigator.pop(context);
+      // Tutup dialog loading
+      // ignore: use_build_context_synchronously
+      if (mounted) Navigator.pop(context);
 
-    if (result == null) {
+      if (result == null) {
       // Produk tidak ditemukan
       showDialog(
         context: context,
@@ -228,6 +224,20 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
         result['carbs'] as int,
         result['fats'] as int,
         nutriScore: result['nutriScore'] as String?,
+      );
+    }
+    } on SocketException {
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📶 Koneksi internet bermasalah. Periksa jaringan kamu.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
       );
     }
   }
@@ -422,164 +432,52 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
     );
   }
 
-
-  Widget _buildCalorieSummary(int totalCalories, int targetCalories) {
-    final remainingCalories = targetCalories - totalCalories;
-    final isOverCalories = remainingCalories < 0;
-
-    return Card(
-      margin: const EdgeInsets.all(16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Text(
-              'Ringkasan Kalori Hari Ini',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildCalorieInfo('Target', '$targetCalories', const Color(0xFF00B4DB)),
-                _buildCalorieInfo(
-                  'Dikonsumsi',
-                  '$totalCalories',
-                  const Color(0xFFD4AF37),
-                ),
-                _buildCalorieInfo(
-                  'Sisa',
-                  '${remainingCalories.abs()}',
-                  isOverCalories ? const Color(0xFFCF6679) : const Color(0xFF38EF7D),
-                  prefix: isOverCalories ? '+' : '',
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final progress = (targetCalories > 0)
-                    ? (totalCalories / targetCalories).clamp(0.0, 1.0)
-                    : 0.0;
-                return Stack(
-                  children: [
-                    Container(
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A2A2A),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 800),
-                      curve: Curves.easeOutQuart,
-                      height: 10,
-                      width: constraints.maxWidth * progress,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        gradient: LinearGradient(
-                          colors: totalCalories > targetCalories
-                              ? [const Color(0xFFCF6679), const Color(0xFFFF6B9D)]
-                              : [const Color(0xFFCD7F32), const Color(0xFFFFD700)],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (totalCalories > targetCalories
-                                    ? const Color(0xFFCF6679)
-                                    : const Color(0xFFFFD700))
-                                .withOpacity(0.4),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCalorieInfo(
-    String label,
-    String value,
-    Color color, {
-    String prefix = '',
-  }) {
-    return Column(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 14)),
-        const SizedBox(height: 4),
-        Text(
-          '$prefix$value',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        const Text('kcal', style: TextStyle(fontSize: 12)),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.no_food, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.no_food_rounded, size: 64, color: theme.colorScheme.primary.withOpacity(0.8)),
+          ).animate(onPlay: (controller) => controller.repeat())
+           .shimmer(duration: 2.seconds, color: theme.colorScheme.secondary.withOpacity(0.3))
+           .animate() // independent floating animation
+           .slideY(begin: -0.05, end: 0.05, duration: 1.5.seconds, curve: Curves.easeInOutSine)
+           .then()
+           .slideY(begin: 0.05, end: -0.05, duration: 1.5.seconds, curve: Curves.easeInOutSine),
+          const SizedBox(height: 24),
           Text(
-            'Belum ada makanan yang ditambahkan',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-          ),
+            'Belum Ada Makanan',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+          ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0),
           const SizedBox(height: 8),
           Text(
-            'Tekan tombol + untuk menambahkan makanan',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
+            'Tekan tombol + di bawah atau gunakan\nKamera AI untuk melacak makananmu!',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7), height: 1.5),
+          ).animate().fadeIn(delay: 200.ms, duration: 500.ms).slideY(begin: 0.2, end: 0),
         ],
       ),
     );
   }
 
+
   Widget _buildFoodList(List<CalorieEntry> entries) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // Tambah padding bawah agar tidak tertutup tombol FAB
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFD4AF37).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.restaurant, color: Color(0xFFD4AF37), size: 20),
-            ),
-            title: Text(
-              entry.foodName,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              '${entry.calories} kcal  •  P: ${entry.protein}g  •  C: ${entry.carbs}g  •  L: ${entry.fats}g',
-              style: const TextStyle(color: Color(0xFFBBAA88), fontSize: 12),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline, color: Color(0xFFCF6679)),
-              tooltip: 'Hapus makanan',
-              onPressed: () => _confirmDeleteFood(context, entry),
-            ),
-          ),
+        return FoodListItem(
+          entry: entry,
+          onTap: () => _showEditFoodDialog(entry),
+          onDelete: () => _confirmDeleteFood(context, entry),
         );
       },
     );
@@ -1049,86 +947,5 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
                 ),
           ),
     );
-  }
-
-  void _showSettingsDialog() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                title: const Text('Pengaturan Notifikasi'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Aktifkan notifikasi untuk mengingatkan Anda tentang target kalori harian.',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                    const SizedBox(height: 16),
-                    SwitchListTile(
-                      title: const Text('Notifikasi Kalori'),
-                      subtitle: const Text('Pengingat target kalori harian'),
-                      value: _notificationsEnabled,
-                      onChanged: (bool value) {
-                        setDialogState(() {
-                          _notificationsEnabled = value;
-                        });
-                        setState(() {
-                          _notificationsEnabled = value;
-                        });
-                        _saveNotificationSettings(value);
-
-                        // Show confirmation message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              value
-                                  ? 'Notifikasi diaktifkan'
-                                  : 'Notifikasi dinonaktifkan',
-                            ),
-                            backgroundColor:
-                                value ? Colors.green : Colors.orange,
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Tutup'),
-                  ),
-                ],
-              );
-            },
-          ),
-    );
-  }
-
-  // Load notification settings from SharedPreferences
-  Future<void> _loadNotificationSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
-    });
-  }
-
-  // Save notification settings to SharedPreferences
-  Future<void> _saveNotificationSettings(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('notifications_enabled', enabled);
-    
-    if (enabled) {
-      // Minta permission lalu jadwalkan notifikasi harian
-      await NotificationHelper.requestPermission();
-      await NotificationHelper.scheduleDailyNotifications();
-    } else {
-      // Batalkan semua notifikasi
-      await NotificationHelper.cancelAllNotifications();
-    }
   }
 }

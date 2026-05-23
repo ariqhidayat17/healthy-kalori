@@ -125,11 +125,12 @@ Format wajib:
         final errorMsg = 'Vision API Error ${response.statusCode}: ${response.body}';
         throw Exception(errorMsg);
       }
+    } on SocketException {
+      return {'error': '📶 Koneksi internet bermasalah. Periksa jaringan kamu.'};
+    } on Exception catch (e) {
+      return {'error': e.toString()};
     } catch (e) {
-      // Return sebuah marker jika gagal
-      return {
-        'error': e.toString()
-      };
+      return {'error': '❌ Terjadi kesalahan tidak terduga.'};
     }
   }
 }

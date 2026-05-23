@@ -1,8 +1,10 @@
 import 'dart:math';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 class NotificationHelper {
   static final FlutterLocalNotificationsPlugin _plugin =
@@ -86,6 +88,14 @@ class NotificationHelper {
 
   static Future<void> init() async {
     tz.initializeTimeZones();
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      final String timeZoneName = info.identifier;
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      debugPrint('[NotificationHelper] Timezone set to: $timeZoneName');
+    } catch (e) {
+      debugPrint('[NotificationHelper] Failed to set timezone: $e');
+    }
 
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -106,11 +116,22 @@ class NotificationHelper {
   }
 
   static Future<bool> requestPermission() async {
-    final androidPlugin =
-        _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-    final granted = await androidPlugin?.requestNotificationsPermission();
-    return granted ?? false;
+    if (Platform.isIOS) {
+      final iosPlugin = _plugin.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      final granted = await iosPlugin?.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return granted ?? false;
+    } else if (Platform.isAndroid) {
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final granted = await androidPlugin?.requestNotificationsPermission();
+      return granted ?? false;
+    }
+    return false;
   }
 
   /// Jadwalkan 3 notifikasi harian dengan pesan acak yang sesuai waktu:
