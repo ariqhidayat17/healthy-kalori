@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import '../services/groq_service.dart';
+import '../services/gemini_service.dart';
 import '../models/calorie_provider.dart';
 
 class AiCoachScreen extends StatefulWidget {
@@ -15,7 +15,7 @@ class AiCoachScreen extends StatefulWidget {
 
 class _AiCoachScreenState extends State<AiCoachScreen> {
   final TextEditingController _controller = TextEditingController();
-  final GroqService _groqService = GroqService();
+  final GeminiService _geminiService = GeminiService();
   final ScrollController _scrollController = ScrollController();
 
   // Pesan yang ditampilkan di UI (tidak termasuk system prompt)
@@ -71,7 +71,7 @@ Beri tahu user bahwa aplikasi "Your AI Coach" ini memiliki fitur berikut jika re
 
 CARA KERJA APLIKASI INI (TEKNIS - Jawab jika ditanya):
 Jika pengguna (atau dosen penguji) bertanya bagaimana aplikasi ini dibuat atau bekerja, jelaskan dengan bangga:
-1. Analisis AI Kamera: Menggunakan "Groq Vision API" (Model LLaMA 3.2 Vision) untuk memproses gambar Base64 menjadi data JSON berisi estimasi porsi, kalori, dan makro.
+1. Analisis AI Kamera: Menggunakan "Google Gemini 1.5 Flash API" (via Google AI Studio) dengan fitur JSON Mode untuk memproses gambar menjadi data estimasi porsi, kalori, dan makro secara akurat dan terstruktur.
 2. Barcode Scanner: Terhubung dengan RESTful API dari "OpenFoodFacts" secara real-time untuk menarik data gizi produk kemasan dunia.
 3. Database: Menggunakan "SQLite" sebagai penyimpanan lokal (offline-first) untuk performa cepat dan privasi data.
 4. Perhitungan Kalori: Menggunakan algoritma TDEE dinamis yang bereaksi terhadap perubahan log berat badan pengguna.
@@ -201,7 +201,7 @@ ATURAN WAJIB dalam SETIAP respons:
     _scrollToBottom();
 
     // Kirim ke API menggunakan API messages (dengan konteks)
-    final response = await _groqService.getChatResponse(_apiMessages);
+    final response = await _geminiService.getChatResponse(_apiMessages);
 
     final assistantMsg = {'role': 'assistant', 'content': response};
 

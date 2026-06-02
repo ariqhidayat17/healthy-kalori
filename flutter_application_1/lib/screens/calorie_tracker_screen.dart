@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import '../models/calorie_provider.dart';
 import '../models/calorie_entry.dart';
 import '../utils/notification_helper.dart';
-import '../services/groq_service.dart';
+import '../services/gemini_service.dart';
 import '../services/openfoodfacts_service.dart';
 import 'package:simple_barcode_scanner/simple_barcode_scanner.dart';
 import 'package:image_picker/image_picker.dart';
@@ -147,7 +147,7 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
       ),
     );
 
-    final result = await GroqService().analyzeFoodImage(File(image.path));
+    final result = await GeminiService().analyzeFoodImage(File(image.path));
     
     // ignore: use_build_context_synchronously
     Navigator.pop(context); // Tutup loading dialog
@@ -332,9 +332,9 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
                             );
                             try {
                               final foodName = nameController.text.trim();
-                              final prompt = 'Kamu adalah database nutrisi makanan terpercaya. Estimasi kandungan gizi "${foodName}" berdasarkan PORSI UMUM/WAJAR yang biasa dikonsumsi sekali makan (bukan per 100g). Balas HANYA JSON valid: {"calories": 200, "protein": 5, "carbs": 30, "fats": 8}. Nilai harus integer.';
-                              final response = await GroqService().getChatResponse([
-                                {'role': 'system', 'content': 'Kamu adalah ahli gizi dan database nutrisi. Selalu balas dengan satu JSON valid saja, tidak ada teks lain sama sekali.'},
+                              final prompt = 'Estimasi kandungan gizi "${foodName}" untuk PORSI UMUM/WAJAR yang biasa dikonsumsi sekali makan (bukan per 100g). Balas HANYA JSON valid: {"calories": 200, "protein": 5, "carbs": 30, "fats": 8}. Nilai harus integer.';
+                              final response = await GeminiService().getChatResponse([
+                                {'role': 'system', 'content': 'Kamu adalah ahli gizi dan database nutrisi profesional. Selalu balas dengan satu JSON valid saja, tidak ada teks atau markdown lain sama sekali.'},
                                 {'role': 'user', 'content': prompt}
                               ]);
                               Navigator.pop(context); // Tutup loading
@@ -809,7 +809,7 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
                                     
                                     try {
                                       final prompt = 'Estimasi kalori & makro dari "${nameController.text}". Balas HANYA dengan JSON valid, tanpa teks pembuka/penutup. Contoh: {"calories": 100, "protein": 10, "carbs": 20, "fats": 5}. Harus berisi integer.';
-                                      final response = await GroqService().getChatResponse([
+                                      final response = await GeminiService().getChatResponse([
                                         {'role': 'user', 'content': prompt}
                                       ]);
                                       
