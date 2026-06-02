@@ -135,7 +135,7 @@ class GeminiService {
         'generationConfig': {
           'responseMimeType': 'application/json',
           'temperature': 0.1,
-          'maxOutputTokens': 300,
+          'maxOutputTokens': 1500, // Dinaikkan untuk mengakomodasi reasoning tokens
         },
       };
 
@@ -149,9 +149,32 @@ class GeminiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final jsonString =
+        
+        // Cek apakah response terpotong karena batas token
+        final finishReason = data['candidates'][0]['finishReason'];
+        if (finishReason == 'MAX_TOKENS') {
+          return {'error': '❌ Analisis AI terpotong. Coba lagi.'};
+        }
+
+        String jsonString =
             data['candidates'][0]['content']['parts'][0]['text'] as String;
-        // Gemini JSON Mode menjamin output ini sudah bersih — tidak perlu strip markdown
+            
+        // Pembersih Markdown: berjaga-jaga jika Gemini 3.5 tetap mengirimkan ```json
+        if (jsonString.contains('```')) {
+          final regex = RegExp(r'```(?:json)?\n?(.*?)\n?```', dotAll: true);
+          final match = regex.firstMatch(jsonString);
+          if (match != null) {
+            jsonString = match.group(1) ?? jsonString;
+          }
+        }
+        
+        // Pembersih ekstra jika ada teks pembuka seperti "Here is the JSON requested:"
+        final startIdx = jsonString.indexOf('{');
+        final endIdx = jsonString.lastIndexOf('}');
+        if (startIdx != -1 && endIdx != -1 && endIdx >= startIdx) {
+          jsonString = jsonString.substring(startIdx, endIdx + 1);
+        }
+
         final parsedJson = jsonDecode(jsonString) as Map<String, dynamic>;
         return parsedJson;
       } else {
