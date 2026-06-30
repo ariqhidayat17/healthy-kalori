@@ -1,0 +1,26 @@
+{
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "inlineData": {
+            "mimeType": "image/jpeg",
+            "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+          }
+        },
+        {
+          "text": "test"
+        }
+      ]
+    }
+  ],
+  "systemInstruction": {
+    "parts": [
+      {"text": "system"}
+    ]
+  },
+  "generationConfig": {
+    "responseMimeType": "application/json"
+  }
+}

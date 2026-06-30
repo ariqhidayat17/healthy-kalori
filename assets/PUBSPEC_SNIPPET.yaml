@@ -1,0 +1,9 @@
+# Tambahkan ke pubspec.yaml — bagian `flutter:`
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/apex_avatar.png
+
+# Setelah menambahkan, jalankan:
+#   flutter pub get
