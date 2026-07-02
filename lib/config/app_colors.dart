@@ -57,7 +57,7 @@ class AppColors {
   static const Color kRarityEpic      = Color(0xFFBFA1FF);
   static const Color kRarityLegendary = Color(0xFFFFD93D);
 
-  // Shadows
+  // ── Shadows ────────────────────────────────────────────────────────────────
   static List<BoxShadow> kSoftShadow = [
     BoxShadow(
       color: kPrimaryOrange.withValues(alpha: 0.15),
@@ -73,4 +73,78 @@ class AppColors {
       offset: const Offset(0, 4),
     ),
   ];
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // STITCH MATERIAL 3 TOKENS — diekstrak langsung dari tailwind.config
+  // di setiap code.html Stitch. Ini sumber kebenaran warna yang presisi,
+  // BUKAN tebakan dari screenshot. Gunakan token ini untuk widget baru
+  // yang mengikuti desain Stitch "Adventurer's Vitality".
+  // ───────────────────────────────────────────────────────────────────────────
+  static const Color stPrimary               = Color(0xFF7C5800);
+  static const Color stOnPrimary              = Color(0xFFFFFFFF);
+  static const Color stPrimaryContainer       = Color(0xFFFFB800);
+  static const Color stOnPrimaryContainer     = Color(0xFF6B4C00);
+  static const Color stPrimaryFixed           = Color(0xFFFFDEA8);
+  static const Color stPrimaryFixedDim        = Color(0xFFFFBA20);
+  static const Color stOnPrimaryFixed         = Color(0xFF271900);
+  static const Color stOnPrimaryFixedVariant  = Color(0xFF5E4200);
+  static const Color stInversePrimary         = Color(0xFFFFBA20);
+
+  static const Color stSecondary              = Color(0xFF9B4500);
+  static const Color stOnSecondary            = Color(0xFFFFFFFF);
+  static const Color stSecondaryContainer     = Color(0xFFFC8A40);
+  static const Color stOnSecondaryContainer   = Color(0xFF672C00);
+  static const Color stSecondaryFixed         = Color(0xFFFFDBC9);
+  static const Color stSecondaryFixedDim      = Color(0xFFFFB68D);
+  static const Color stOnSecondaryFixed       = Color(0xFF331200);
+  static const Color stOnSecondaryFixedVariant= Color(0xFF763300);
+
+  static const Color stTertiary               = Color(0xFF705D00);
+  static const Color stTertiaryContainer      = Color(0xFFE6C224);
+  static const Color stOnTertiaryContainer    = Color(0xFF615000);
+  static const Color stTertiaryFixed          = Color(0xFFFFE173);
+  static const Color stTertiaryFixedDim       = Color(0xFFE8C426);
+  static const Color stOnTertiary             = Color(0xFFFFFFFF);
+  static const Color stOnTertiaryFixed        = Color(0xFF221B00);
+  static const Color stOnTertiaryFixedVariant = Color(0xFF554500);
+
+  static const Color stBackground             = Color(0xFFFFF8F3);
+  static const Color stOnBackground           = Color(0xFF211B11);
+  static const Color stSurface                = Color(0xFFFFF8F3);
+  static const Color stSurfaceTint             = Color(0xFF7C5800);
+  static const Color stSurfaceBright           = Color(0xFFFFF8F3);
+  static const Color stSurfaceDim              = Color(0xFFE5D8C8);
+  static const Color stOnSurface               = Color(0xFF211B11);
+  static const Color stOnSurfaceVariant         = Color(0xFF514532);
+  static const Color stSurfaceVariant           = Color(0xFFEDE1D0);
+  static const Color stSurfaceContainerLowest   = Color(0xFFFFFFFF);
+  static const Color stSurfaceContainerLow      = Color(0xFFFFF2E1);
+  static const Color stSurfaceContainer         = Color(0xFFF9ECDB);
+  static const Color stSurfaceContainerHigh     = Color(0xFFF3E6D6);
+  static const Color stSurfaceContainerHighest  = Color(0xFFEDE1D0);
+  static const Color stInverseSurface           = Color(0xFF362F24);
+  static const Color stInverseOnSurface         = Color(0xFFFCEFDE);
+
+  static const Color stOutline                  = Color(0xFF837560);
+  static const Color stOutlineVariant           = Color(0xFFD5C4AB);
+
+  static const Color stError                    = Color(0xFFBA1A1A);
+  static const Color stOnError                  = Color(0xFFFFFFFF);
+  static const Color stErrorContainer           = Color(0xFFFFDAD6);
+  static const Color stOnErrorContainer         = Color(0xFF93000A);
+
+  // ── Spacing tokens (dari tailwind.config "spacing") ───────────────────────
+  static const double stSpaceXs   = 4;
+  static const double stSpaceSm   = 8;
+  static const double stSpaceMd   = 16;
+  static const double stSpaceLg   = 24;
+  static const double stSpaceXl   = 32;
+  static const double stContainerMargin = 20;
+  static const double stStackGap  = 12;
+
+  // ── Border radius tokens ───────────────────────────────────────────────────
+  static const double stRadiusDefault = 4;
+  static const double stRadiusLg      = 8;
+  static const double stRadiusXl      = 12;
+  static const double stRadiusFull    = 9999;
 }

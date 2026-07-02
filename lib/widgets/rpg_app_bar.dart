@@ -7,17 +7,36 @@ import '../models/calorie_provider.dart';
 import '../utils/prefs_service.dart';
 import '../utils/rpg_title_helper.dart';
 
-/// AppBar RPG yang konsisten di semua screen — sesuai desain Stitch.
+/// AppBar — diterjemahkan presisi dari <header> di setiap code.html Stitch.
 ///
-/// Layout:
-///   [Avatar bulat] [Lvl. X Title]     [Ikon Rank]
-///                  [SCREEN SUBTITLE]
+/// Spek HTML asli:
+/// ```html
+/// <header class="bg-surface shadow-sm flex justify-between items-center
+///   w-full px-container-margin py-sm border-b border-outline-variant/30
+///   sticky top-0 z-40">
+///   <div class="flex items-center gap-3">
+///     <div class="w-10 h-10 rounded-full border-2 border-primary-container
+///       p-0.5 overflow-hidden">
+///       <img class="w-full h-full object-cover rounded-full" src="..."/>
+///     </div>
+///     <h1 class="text-headline-md-mobile font-headline-md-mobile
+///       text-primary">Lvl. 24 Paladin</h1>
+///   </div>
+///   <button class="material-symbols-outlined text-primary"
+///     data-icon="military_tech">military_tech</button>
+/// </header>
+/// ```
 ///
-/// Gunakan sebagai PreferredSizeWidget di Scaffold.appBar.
-///
-/// Contoh:
-///   appBar: RPGAppBar(screenKey: 'food'),
-///   appBar: RPGAppBar(screenKey: 'quest', actions: [...]),
+/// PENTING — perbedaan dari versi sebelumnya (sudah diperbaiki):
+/// - Avatar adalah FOTO statis (object-cover), bukan inisial nama
+/// - Border avatar SELALU primary-container (gold #ffb800), bukan warna
+///   yang berubah-ubah sesuai rank
+/// - Icon kanan SELALU military_tech dengan warna primary (#7c5800) solid,
+///   bukan icon dinamis (diamond/shield/dst) per rank
+/// - Title pakai headline-md-mobile: Montserrat 22px/800, warna primary
+/// - Tidak ada subtitle baris kedua di HTML asli — opsi showSubtitle
+///   dipertahankan sebagai extension non-spek untuk screen yang butuh,
+///   default false agar match HTML
 class RPGAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String screenKey;
   final List<Widget>? actions;
@@ -27,7 +46,7 @@ class RPGAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.screenKey,
     this.actions,
-    this.showSubtitle = true,
+    this.showSubtitle = false, // default false — HTML tidak punya subtitle
   });
 
   @override
@@ -37,16 +56,12 @@ class RPGAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? AppColors.kDarkBg : AppColors.kBgCream;
-    final textColor = isDark ? AppColors.kDarkText : const Color(0xFF211B11);
-    final subColor = isDark ? AppColors.kDarkTextSub : const Color(0xFF837560);
+    final bgColor = isDark ? AppColors.kDarkBg : AppColors.stSurface;
+    final borderColor = isDark ? AppColors.kDarkBorder : AppColors.stOutlineVariant.withOpacity(0.3);
 
     return Consumer<CalorieProvider>(
       builder: (context, provider, _) {
-        final name = PrefsService.i.name;
-        final level = provider.targetCalories > 0
-            ? _readLevel()
-            : 1;
+        final level = _readLevel();
         final rank = PrefsService.i.userLevel.isNotEmpty
             ? PrefsService.i.userLevel
             : 'Bronze';
@@ -57,51 +72,72 @@ class RPGAppBar extends StatelessWidget implements PreferredSizeWidget {
               : SystemUiOverlayStyle.dark,
           child: Container(
             color: bgColor,
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+              boxShadow: [
+                // shadow-sm
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1)),
+              ],
+            ),
             padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top,
-              left: 16,
-              right: 16,
+              top: MediaQuery.of(context).padding.top + 8, // py-sm
+              left: 20, // px-container-margin
+              right: 20,
               bottom: 8,
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ── Avatar ────────────────────────────────────────────────
-                _AvatarCircle(rank: rank, isDark: isDark),
-                const SizedBox(width: 10),
-
-                // ── Title + Subtitle ──────────────────────────────────────
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        RPGTitleHelper.fullTitle(level, rank),
-                        style: GoogleFonts.montserrat(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: textColor,
-                          height: 1.2,
-                        ),
-                      ),
-                      if (showSubtitle)
+                // gap-3 (12px)
+                Row(
+                  children: [
+                    const _AvatarPhoto(),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          RPGTitleHelper.screenSubtitle(screenKey),
-                          style: GoogleFonts.nunito(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: subColor,
-                            letterSpacing: 0.8,
+                          RPGTitleHelper.fullTitle(level, rank),
+                          style: GoogleFonts.montserrat(
+                            // headline-md-mobile: 22px, lineHeight 28px, weight 800
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            height: 28 / 22,
+                            color: isDark ? AppColors.kDarkText : AppColors.stPrimary,
                           ),
                         ),
-                    ],
-                  ),
+                        // Subtitle non-spek, ditampilkan hanya jika diminta eksplisit
+                        if (showSubtitle)
+                          Text(
+                            RPGTitleHelper.screenSubtitle(screenKey),
+                            style: GoogleFonts.nunitoSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ),
-
-                // ── Actions + Rank Icon ───────────────────────────────────
-                if (actions != null) ...actions!,
-                _RankIconButton(rank: rank, isDark: isDark),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (actions != null) ...actions!,
+                    // Icon kanan SELALU military_tech, warna primary solid
+                    IconButton(
+                      onPressed: () {},
+                      icon: Icon(
+                        Icons.military_tech_rounded,
+                        color: isDark ? AppColors.kDarkText : AppColors.stPrimary,
+                        size: 24,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -116,85 +152,33 @@ class RPGAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-// ── Avatar bulat dengan initial nama ─────────────────────────────────────────
+// ── Avatar foto — w-10 h-10, rounded-full, border-2 primary-container ────────
 
-class _AvatarCircle extends StatelessWidget {
-  final String rank;
-  final bool isDark;
-
-  const _AvatarCircle({required this.rank, required this.isDark});
-
-  Color get _ringColor => switch (rank) {
-        'Gold'    => AppColors.kPrimaryGold,
-        'Diamond' => AppColors.kManaBlue,
-        'Spartan' => AppColors.kMysticPurple,
-        'Silver'  => Colors.grey[400]!,
-        _         => AppColors.kPrimaryOrange,
-      };
+class _AvatarPhoto extends StatelessWidget {
+  const _AvatarPhoto();
 
   @override
   Widget build(BuildContext context) {
-    final name = PrefsService.i.name;
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'A';
-
     return Container(
       width: 40,
       height: 40,
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.all(2), // p-0.5 (border inset)
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        color: isDark ? AppColors.kDarkSurface2 : const Color(0xFFF3E6D6),
-        border: Border.all(color: _ringColor, width: 2),
+        border: Border.fromBorderSide(
+          BorderSide(color: AppColors.stPrimaryContainer, width: 2),
+        ),
       ),
-      child: Center(
-        child: Text(
-          initial,
-          style: GoogleFonts.montserrat(
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-            color: _ringColor,
+      child: ClipOval(
+        child: Image.asset(
+          'assets/images/apex_avatar.png',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            color: AppColors.stPrimaryContainer.withOpacity(0.2),
+            child: Icon(Icons.person_rounded, color: AppColors.stPrimary, size: 20),
           ),
         ),
       ),
-    );
-  }
-}
-
-// ── Rank icon button (kanan) ──────────────────────────────────────────────────
-
-class _RankIconButton extends StatelessWidget {
-  final String rank;
-  final bool isDark;
-
-  const _RankIconButton({required this.rank, required this.isDark});
-
-  // Ikon rank custom (SVG-style menggunakan icon bawaan)
-  IconData get _icon => switch (rank) {
-        'Gold'    => Icons.military_tech_rounded,
-        'Diamond' => Icons.diamond_rounded,
-        'Spartan' => Icons.shield_rounded,
-        'Silver'  => Icons.workspace_premium_rounded,
-        _         => Icons.emoji_events_outlined,
-      };
-
-  Color get _color => switch (rank) {
-        'Gold'    => AppColors.kPrimaryGold,
-        'Diamond' => AppColors.kManaBlue,
-        'Spartan' => AppColors.kMysticPurple,
-        'Silver'  => Colors.grey[400]!,
-        _         => const Color(0xFFCD7F32),
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _color.withOpacity(0.12),
-        border: Border.all(color: _color.withOpacity(0.4), width: 1),
-      ),
-      child: Icon(_icon, color: _color, size: 20),
     );
   }
 }
