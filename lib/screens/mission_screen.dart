@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../utils/prefs_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../config/app_colors.dart';
 import '../models/calorie_provider.dart';
 import '../services/gamification_service.dart';
-import '../config/app_colors.dart';
+import '../utils/prefs_service.dart';
 import '../widgets/rpg_app_bar.dart';
-import '../widgets/fantasy_quest_card.dart';
-import '../widgets/fantasy_card.dart';
 
-/// MissionScreen — Quest Board harian.
-/// Rank & Leaderboard kini di RankProgressScreen terpisah (tab Rank di
-/// bottom nav), jadi screen ini fokus 100% ke quest harian sesuai desain
-/// Stitch: "XP HARI INI" card + Quest Aktif + Peti Harta Harian.
+/// MissionScreen — diterjemahkan presisi dari misi_harian/code.html.
+///
+/// Struktur sesuai HTML:
+/// 1. XP Progress Card (parchment-texture, stat-number primary, bar gold)
+/// 2. Quest Aktif section — 3 quest card (restaurant/fire/water_drop icons)
+/// 3. Peti Harta Harian (dashed border primary-container/50)
+/// 4. Quest Mingguan (horizontal scroll, border-l-4)
 class MissionScreen extends StatefulWidget {
   const MissionScreen({super.key});
 
@@ -23,8 +24,6 @@ class MissionScreen extends StatefulWidget {
 
 class _MissionScreenState extends State<MissionScreen> {
   int _currentXP = 0;
-  String _currentRank = 'Bronze';
-
   bool _proteinClaimed = false;
   bool _calorieClaimed = false;
   bool _waterClaimed = false;
@@ -40,143 +39,58 @@ class _MissionScreenState extends State<MissionScreen> {
     final prefs = PrefsService.i.raw;
     final today = DateTime.now();
     final dateKey = '${today.year}-${today.month}-${today.day}';
-
     final stats = await GamificationService().getUserStats();
-
     setState(() {
       _currentXP = stats['xp'] as int? ?? 0;
-      _currentRank = stats['rank'] as String? ?? 'Bronze';
       _proteinClaimed = prefs.getBool('mission_protein_$dateKey') ?? false;
       _calorieClaimed = prefs.getBool('mission_calorie_$dateKey') ?? false;
-      _waterClaimed = prefs.getBool('mission_water_$dateKey') ?? false;
-      _chestClaimed = prefs.getBool('mission_chest_$dateKey') ?? false;
+      _waterClaimed   = prefs.getBool('mission_water_$dateKey')   ?? false;
+      _chestClaimed   = prefs.getBool('mission_chest_$dateKey')   ?? false;
     });
   }
 
-  Future<void> _claimMission(String missionKey, int xpReward, String missionName) async {
+  Future<void> _claimMission(String key, int xp, String name) async {
     final prefs = PrefsService.i.raw;
     final today = DateTime.now();
     final dateKey = '${today.year}-${today.month}-${today.day}';
-    await prefs.setBool('mission_${missionKey}_$dateKey', true);
-
-    final xpResult = await GamificationService().addXP(xpReward);
+    await prefs.setBool('mission_${key}_$dateKey', true);
+    final result = await GamificationService().addXP(xp);
     await _loadData();
-
     if (mounted) {
-      final leveledUp = xpResult['leveled_up'] as bool;
-      if (leveledUp) {
-        _showLevelUpDialog(xpResult['new_rank'] as String);
+      if (result['leveled_up'] == true) {
+        _showLevelUpDialog(result['new_rank'] as String);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('⚔️ Misi "$missionName" diklaim! +$xpReward XP'),
-            backgroundColor: const Color(0xFF4CAF50),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('⚔️ "$name" diklaim! +$xp XP'),
+          backgroundColor: AppColors.stPrimary,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppColors.stRadiusLg)),
+        ));
       }
     }
   }
 
-  Future<void> _claimDailyChest(int completedMissions) async {
+  Future<void> _claimChest(int completedCount) async {
     final prefs = PrefsService.i.raw;
     final today = DateTime.now();
     final dateKey = '${today.year}-${today.month}-${today.day}';
     await prefs.setBool('mission_chest_$dateKey', true);
-
-    final bonusXP = completedMissions * 30;
-    final xpResult = await GamificationService().addXP(bonusXP);
+    final bonus = completedCount * 30;
+    await GamificationService().addXP(bonus);
     await _loadData();
-
-    if (mounted) {
-      _showChestDialog(bonusXP, xpResult['leveled_up'] as bool, xpResult['new_rank'] as String);
-    }
+    if (mounted) _showChestDialog(bonus);
   }
 
-  void _showChestDialog(int xpGained, bool leveledUp, String newRank) {
+  void _showChestDialog(int xpGained) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFFFF8E1), Color(0xFFFFECB3)],
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.5, end: 1.0),
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.elasticOut,
-                builder: (_, value, child) => Transform.scale(scale: value, child: child),
-                child: const Text('🎁', style: TextStyle(fontSize: 72)),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Peti Harian Dibuka!',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1A1A2E)),
-              ),
-              const SizedBox(height: 8),
-              if (leveledUp) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
-                  ),
-                  child: Text(
-                    '🎉 NAIK RANK ke $newRank!',
-                    style: const TextStyle(color: Color(0xFF4CAF50), fontWeight: FontWeight.w900, fontSize: 16),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF9800).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '+$xpGained XP Diperoleh!',
-                  style: const TextStyle(color: Color(0xFFFF9800), fontWeight: FontWeight.w900, fontSize: 20),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Kamu adalah pahlawan sejati! 🏆\nTerus pertahankan streak harianmu.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.5),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF9800),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
-                  child: const Text('Keren! 🎊', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                ),
-              ),
-            ],
-          ),
-        ),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppColors.stRadiusXl)),
+        title: const Text('🎁 Peti Harta Dibuka!', textAlign: TextAlign.center),
+        content: Text('+$xpGained XP bonus! Kerja bagus hari ini!', textAlign: TextAlign.center),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Keren!')),
+        ],
       ),
     );
   }
@@ -184,55 +98,13 @@ class _MissionScreenState extends State<MissionScreen> {
   void _showLevelUpDialog(String newRank) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 800),
-                curve: Curves.elasticOut,
-                builder: (_, value, child) => Transform.scale(scale: value, child: child),
-                child: const Text('🏆', style: TextStyle(fontSize: 72)),
-              ),
-              const SizedBox(height: 16),
-              const Text('RANK NAIK!', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Color(0xFF2E7D32), letterSpacing: 2)),
-              const SizedBox(height: 8),
-              Text(
-                'Selamat! Kamu telah mencapai\nperingkat $newRank! 🎖️',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Color(0xFF388E3C), fontWeight: FontWeight.w600, height: 1.5),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4CAF50),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    elevation: 0,
-                  ),
-                  child: const Text('Kembali Berjuang! ⚔️', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                ),
-              ),
-            ],
-          ),
-        ),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppColors.stRadiusXl)),
+        title: const Text('🏆 RANK NAIK!', textAlign: TextAlign.center),
+        content: Text('Selamat! Kamu mencapai rank $newRank! 🎖️', textAlign: TextAlign.center),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Lanjutkan!')),
+        ],
       ),
     );
   }
@@ -242,113 +114,283 @@ class _MissionScreenState extends State<MissionScreen> {
     final calorieProvider = context.watch<CalorieProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final consumedProtein = calorieProvider.totalConsumedProtein;
-    final targetProtein = calorieProvider.targetProtein > 0
-        ? calorieProvider.targetProtein.toDouble()
-        : 150.0;
+    final prot  = calorieProvider.totalConsumedProtein;
+    final tProt = calorieProvider.targetProtein > 0 ? calorieProvider.targetProtein : 150;
+    final cal   = calorieProvider.totalConsumedCalories;
+    final tCal  = calorieProvider.targetCalories > 0 ? calorieProvider.targetCalories : 2000;
+    final water = calorieProvider.totalConsumedWater; // ml
+    final tWater = calorieProvider.targetWater > 0 ? calorieProvider.targetWater : 2000;
 
-    final consumedCalories = calorieProvider.totalConsumedCalories;
-    final targetCalories = calorieProvider.targetCalories > 0
-        ? calorieProvider.targetCalories
-        : 2000;
+    final protPct  = (prot / tProt).clamp(0.0, 1.0);
+    final calOk    = cal > 0 && cal <= tCal;
+    final waterPct = (water / tWater).clamp(0.0, 1.0);
 
-    final consumedWaterMl = calorieProvider.totalConsumedWater;
-    final targetWaterMl = calorieProvider.targetWater > 0
-        ? calorieProvider.targetWater
-        : 2000;
-    final waterCups = (consumedWaterMl / 250).floor();
-    final targetWaterCups = (targetWaterMl / 250).ceil();
+    int completed = 0;
+    if (protPct >= 1.0) completed++;
+    if (calOk) completed++;
+    if (waterPct >= 1.0) completed++;
 
-    double protProgress = (consumedProtein / targetProtein).clamp(0.0, 1.0);
-    double calProgress = targetCalories > 0
-        ? (consumedCalories / targetCalories).clamp(0.0, 1.0)
-        : 0.0;
-    bool calCompleted = calProgress >= 0.9;
-    double waterProgress = (consumedWaterMl / targetWaterMl).clamp(0.0, 1.0);
-    bool protCompleted = protProgress >= 1.0;
-    bool waterCompleted = waterProgress >= 1.0;
-
-    int completedMissions = 0;
-    if (protCompleted) completedMissions++;
-    if (calCompleted) completedMissions++;
-    if (waterCompleted) completedMissions++;
-
-    final bool allMissionsCompleted = completedMissions == 3;
-    final bool canClaimChest = allMissionsCompleted && !_chestClaimed &&
-        _proteinClaimed && _calorieClaimed && _waterClaimed;
-
-    // XP hari ini — estimasi dari misi yang sudah diklaim (sesuai desain Stitch "XP HARI INI")
+    // XP hari ini dari misi yang diklaim
     int xpToday = 0;
     if (_proteinClaimed) xpToday += 50;
     if (_calorieClaimed) xpToday += 40;
-    if (_waterClaimed) xpToday += 20;
-    const int maxXpToday = 50 + 40 + 20; // 110, dibulatkan visual ke 200 di Stitch utk headroom chest
-    final double xpTodayProgress = (xpToday / maxXpToday).clamp(0.0, 1.0);
+    if (_waterClaimed)   xpToday += 20;
+    const int maxXpToday = 110;
+    final xpPct = (xpToday / maxXpToday).clamp(0.0, 1.0);
+
+    final bool canClaimChest = completed == 3 && !_chestClaimed
+        && _proteinClaimed && _calorieClaimed && _waterClaimed;
+
+    // "parchment-texture" = surface-container (#f9ecdb)
+    final parchment = isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.kDarkBg : AppColors.kBgCream,
+      backgroundColor: isDark ? AppColors.kDarkBg : AppColors.stBackground,
       appBar: const RPGAppBar(screenKey: 'quest'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        // mt-20 px-container-margin space-y-lg
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── XP HARI INI card — sesuai desain Stitch ───────────────────────
-            _buildXPTodayCard(xpToday, maxXpToday, xpTodayProgress, completedMissions),
+            // ── 1. XP Progress Card ─────────────────────────────────────────
+            _XPCard(xpToday: xpToday, maxXp: maxXpToday, pct: xpPct, parchment: parchment, isDark: isDark),
+            const SizedBox(height: 24), // space-y-lg
+
+            // ── 2. Quest Aktif header ───────────────────────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.sports_kabaddi_rounded, color: isDark ? AppColors.kDarkText : AppColors.stPrimary, size: 22),
+                    const SizedBox(width: 8),
+                    Text('QUEST AKTIF', style: GoogleFonts.montserrat(
+                      fontSize: 18, fontWeight: FontWeight.w800,
+                      color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
+                    )),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                  ),
+                  child: Text('3 Tersedia', style: GoogleFonts.nunitoSans(
+                    fontSize: 12, fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
+                  )),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // ── Quest 1: Protein ────────────────────────────────────────────
+            _QuestCard(
+              iconWidget: Icon(Icons.restaurant_rounded, color: AppColors.stOnTertiaryContainer, size: 28),
+              iconBg: AppColors.stTertiaryContainer,
+              title: 'Makan ${tProt}g Protein',
+              xpLabel: '+50 XP',
+              xpBg: AppColors.stTertiaryFixed,
+              xpFg: AppColors.stOnTertiaryFixedVariant,
+              progress: protPct,
+              progressLabel: '${prot}g / ${tProt}g',
+              progressClass: 'gold',
+              isCompleted: protPct >= 1.0,
+              isClaimed: _proteinClaimed,
+              onClaim: protPct >= 1.0 && !_proteinClaimed ? () => _claimMission('protein', 50, 'Makan Protein') : null,
+              parchment: parchment,
+              isDark: isDark,
+            ).animate().fadeIn(delay: 100.ms).slideX(begin: 0.05),
+            const SizedBox(height: 12),
+
+            // ── Quest 2: Kalori ─────────────────────────────────────────────
+            _QuestCard(
+              iconWidget: Icon(Icons.local_fire_department_rounded, color: AppColors.stOnSecondaryContainer, size: 28),
+              iconBg: AppColors.stSecondaryContainer,
+              title: 'Total Kalori < $tCal',
+              xpLabel: calOk ? '✓ Claimed' : '+40 XP',
+              xpBg: calOk ? AppColors.stSurfaceContainerHigh : AppColors.stSecondaryFixed,
+              xpFg: calOk ? AppColors.stOutline : AppColors.stOnSecondaryFixedVariant,
+              progress: calOk ? 1.0 : (cal / tCal).clamp(0.0, 1.0),
+              progressLabel: calOk ? '$cal kcal ✓' : '$cal kcal',
+              progressClass: 'gold',
+              isCompleted: calOk,
+              isClaimed: _calorieClaimed,
+              onClaim: calOk && !_calorieClaimed ? () => _claimMission('calorie', 40, 'Kalori Terjaga') : null,
+              parchment: parchment,
+              isDark: isDark,
+              dimmed: !calOk && !_calorieClaimed,
+            ).animate().fadeIn(delay: 200.ms).slideX(begin: 0.05),
+            const SizedBox(height: 12),
+
+            // ── Quest 3: Air ─────────────────────────────────────────────────
+            _QuestCard(
+              iconWidget: const Icon(Icons.water_drop_rounded, color: Color(0xFF1976D2), size: 28),
+              iconBg: const Color(0xFFE3F2FD),
+              title: 'Minum ${(tWater / 1000).toStringAsFixed(1)}L Air',
+              xpLabel: '+20 XP',
+              xpBg: AppColors.stPrimaryContainer,
+              xpFg: AppColors.stOnPrimaryContainer,
+              progress: waterPct,
+              progressLabel: '${(water / 1000).toStringAsFixed(1)}L / ${(tWater / 1000).toStringAsFixed(1)}L',
+              progressClass: 'mana',
+              isCompleted: waterPct >= 1.0,
+              isClaimed: _waterClaimed,
+              onClaim: waterPct >= 1.0 && !_waterClaimed ? () => _claimMission('water', 20, 'Hydration Hero') : null,
+              parchment: parchment,
+              isDark: isDark,
+              dimmed: waterPct < 1.0,
+            ).animate().fadeIn(delay: 300.ms).slideX(begin: 0.05),
             const SizedBox(height: 24),
 
-            _sectionTitle('QUEST AKTIF'),
+            // ── 3. Peti Harta Harian ────────────────────────────────────────
+            GestureDetector(
+              onTap: canClaimChest ? () => _claimChest(completed) : null,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24), // p-lg
+                decoration: BoxDecoration(
+                  color: parchment,
+                  borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                  border: Border.all(
+                    color: AppColors.stPrimaryContainer.withOpacity(0.5),
+                    width: 2,
+                    style: BorderStyle.solid, // dashed emulated via solid
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    // Relative icon + lock overlay
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Text(_chestClaimed ? '✅' : '🎁',
+                          style: TextStyle(fontSize: 64, color: canClaimChest ? null : null))
+                            .animate(target: canClaimChest ? 1 : 0)
+                            .shake(duration: 1.seconds),
+                        if (!canClaimChest && !_chestClaimed)
+                          Positioned(
+                            top: 0, right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.stError,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.stBackground, width: 2),
+                              ),
+                              child: const Icon(Icons.lock_rounded, color: Colors.white, size: 14),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _chestClaimed ? 'Sudah Diklaim!' : 'Peti Harta Harian',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 20, fontWeight: FontWeight.w800,
+                        color: isDark ? AppColors.kDarkText : AppColors.stPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _chestClaimed
+                          ? 'Kembali lagi besok!'
+                          : (canClaimChest ? 'Ketuk untuk klaim!' : 'Selesaikan semua quest untuk membuka!'),
+                      style: GoogleFonts.inter(
+                        fontSize: 14, fontWeight: FontWeight.w500,
+                        color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    // Progress dots: 3 dots, biru = completed, abu = kosong
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(3, (i) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 40, height: 8,
+                        decoration: BoxDecoration(
+                          color: i < completed ? AppColors.stPrimary : AppColors.stSurfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                        ),
+                      )),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$completed / 3 QUEST SELESAI',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 10, fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ).animate().fadeIn(delay: 400.ms),
+            const SizedBox(height: 24),
+
+            // ── 4. Quest Mingguan (horizontal scroll) ──────────────────────
+            Row(
+              children: [
+                Icon(Icons.calendar_month_rounded, color: AppColors.stPrimary, size: 20),
+                const SizedBox(width: 8),
+                Text('QUEST MINGGUAN', style: GoogleFonts.montserrat(
+                  fontSize: 18, fontWeight: FontWeight.w800,
+                  color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
+                )),
+              ],
+            ),
             const SizedBox(height: 12),
-
-            FantasyQuestCard(
-              icon: '🥩',
-              title: 'Makan 150g Protein',
-              progressText: '${consumedProtein.toInt()} / ${targetProtein.toInt()}g',
-              progress: protProgress,
-              xpReward: 50,
-              isCompleted: protCompleted,
-              isClaimed: _proteinClaimed,
-              onClaim: () => _claimMission('protein', 50, 'Protein Warrior'),
-            ).animate().fadeIn(delay: 100.ms).slideX(begin: 0.1),
-            const SizedBox(height: 12),
-
-            FantasyQuestCard(
-              icon: '🔥',
-              title: 'Total Kalori < ${targetCalories}',
-              progressText: '$consumedCalories kcal',
-              progress: calProgress,
-              xpReward: 40,
-              isCompleted: calCompleted,
-              isClaimed: _calorieClaimed,
-              onClaim: () => _claimMission('calorie', 40, 'Kalori Terjaga'),
-            ).animate().fadeIn(delay: 200.ms).slideX(begin: 0.1),
-            const SizedBox(height: 12),
-
-            FantasyQuestCard(
-              icon: '💧',
-              title: 'Minum ${(targetWaterMl / 1000).toStringAsFixed(1)}L Air',
-              progressText: '$waterCups / $targetWaterCups Gelas',
-              progress: waterProgress,
-              xpReward: 20,
-              isCompleted: waterCompleted,
-              isClaimed: _waterClaimed,
-              onClaim: () => _claimMission('water', 20, 'Hydration Hero'),
-            ).animate().fadeIn(delay: 300.ms).slideX(begin: 0.1),
-            const SizedBox(height: 32),
-
-            // ── Peti Harta Harian — sesuai desain Stitch (dashed border) ──────
-            _buildTreasureChest(canClaimChest, completedMissions, isDark),
-            const SizedBox(height: 60),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _WeeklyQuestCard(
+                    icon: Icons.fitness_center_rounded, iconColor: AppColors.stSecondary,
+                    borderColor: AppColors.stSecondary, title: 'Angkat Beban 3x',
+                    xpLabel: '+150 XP', xpBg: AppColors.stSecondaryFixed, xpFg: AppColors.stOnSecondaryFixedVariant,
+                    progress: 2/3, label: '2 / 3 Hari',
+                    barColor: AppColors.stSecondary, parchment: parchment,
+                  ),
+                  const SizedBox(width: 16),
+                  _WeeklyQuestCard(
+                    icon: Icons.directions_run_rounded, iconColor: AppColors.stPrimary,
+                    borderColor: AppColors.stPrimary, title: 'Lari 10km Total',
+                    xpLabel: '+200 XP', xpBg: AppColors.stPrimaryFixed, xpFg: AppColors.stOnPrimaryFixedVariant,
+                    progress: 0.42, label: '4.2 / 10 km',
+                    barColor: AppColors.stPrimary, parchment: parchment,
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(delay: 500.ms),
           ],
         ),
       ),
     );
   }
+}
 
-  // ── XP Hari Ini card sesuai Stitch ─────────────────────────────────────────
-  Widget _buildXPTodayCard(int xpToday, int maxXp, double progress, int completed) {
-    final pct = (progress * 100).round();
-    return FantasyCard(
-      padding: const EdgeInsets.all(20),
+// ── XP Progress Card ──────────────────────────────────────────────────────────
+class _XPCard extends StatelessWidget {
+  final int xpToday, maxXp;
+  final double pct;
+  final Color parchment;
+  final bool isDark;
+  const _XPCard({required this.xpToday, required this.maxXp, required this.pct, required this.parchment, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppColors.stSpaceMd),
+      decoration: BoxDecoration(
+        color: parchment,
+        borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+        boxShadow: [BoxShadow(color: AppColors.stOutline.withOpacity(0.2), blurRadius: 0, offset: const Offset(0, 4))],
+        border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.15), width: 1),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -359,133 +401,279 @@ class _MissionScreenState extends State<MissionScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'XP HARI INI',
-                    style: GoogleFonts.nunitoSans(
-                      fontSize: 11, fontWeight: FontWeight.w800,
-                      color: Colors.black45, letterSpacing: 0.5,
-                    ),
-                  ),
-                  RichText(
-                    text: TextSpan(children: [
-                      TextSpan(
-                        text: '$xpToday ',
-                        style: GoogleFonts.montserrat(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.black87),
-                      ),
-                      TextSpan(
-                        text: '/ $maxXp',
-                        style: GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black38),
-                      ),
-                    ]),
-                  ),
+                  Text('XP HARI INI', style: GoogleFonts.nunitoSans(
+                    fontSize: 12, fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
+                  )),
+                  RichText(text: TextSpan(children: [
+                    TextSpan(text: '$xpToday', style: GoogleFonts.montserrat(
+                      fontSize: 28, fontWeight: FontWeight.w900,
+                      color: isDark ? AppColors.kDarkText : AppColors.stPrimary,
+                    )),
+                    TextSpan(text: ' / $maxXp', style: GoogleFonts.montserrat(
+                      fontSize: 18, fontWeight: FontWeight.w700,
+                      color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
+                    )),
+                  ])),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome_rounded, color: AppColors.stSecondary, size: 16),
+                  const SizedBox(width: 4),
+                  Text('${(pct * 100).round()}% Selesai', style: GoogleFonts.nunitoSans(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.stSecondary,
+                  )),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // h-4 bg-surface-container-highest, progress-bar-inner gold gradient
+          Stack(children: [
+            Container(height: 16, decoration: BoxDecoration(
+              color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerHighest,
+              borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+              border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.5), width: 1),
+            )),
+            FractionallySizedBox(
+              widthFactor: pct,
+              child: Container(
+                height: 16,
                 decoration: BoxDecoration(
-                  color: AppColors.kPrimaryGold.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Text(
-                  '✨ $pct% Selesai',
-                  style: GoogleFonts.nunitoSans(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFF8A5A1E)),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Stack(
-            children: [
-              Container(
-                height: 8,
-                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(100)),
-              ),
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: progress),
-                duration: const Duration(milliseconds: 700),
-                curve: Curves.easeOutCubic,
-                builder: (_, v, __) => FractionallySizedBox(
-                  widthFactor: v,
-                  child: Container(
-                    height: 8,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.kGradientSunset,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
+                  gradient: const LinearGradient(
+                    colors: [AppColors.stPrimaryContainer, AppColors.stPrimaryFixed],
                   ),
+                  borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                  boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.5), blurRadius: 2, offset: const Offset(0, 1))],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            completed == 3
-                ? 'Semua quest selesai! Buka Peti Harta sekarang! 🎁'
-                : 'Teruslah berjuang, Ksatria! Sedikit lagi menuju level berikutnya.',
-            style: GoogleFonts.inter(fontSize: 12, color: Colors.black54, fontStyle: FontStyle.italic, height: 1.4),
-          ),
-        ],
-      ),
-    ).animate().fadeIn().slideY(begin: -0.1);
-  }
-
-  Widget _sectionTitle(String title) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Row(
-        children: [
-          const Text('⚔️ ', style: TextStyle(fontSize: 14)),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 14, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: 1.2,
             ),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+            '"Teruslah berjuang, Ksatria! Sedikit lagi menuju level berikutnya."',
+            style: GoogleFonts.inter(fontSize: 12, fontStyle: FontStyle.italic,
+              color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildTreasureChest(bool canClaim, int completed, bool isDark) {
-    return GestureDetector(
-      onTap: canClaim ? () => _claimDailyChest(completed) : null,
+// ── Quest Card ────────────────────────────────────────────────────────────────
+class _QuestCard extends StatelessWidget {
+  final Widget iconWidget;
+  final Color iconBg;
+  final String title, xpLabel, progressLabel, progressClass;
+  final Color xpBg, xpFg;
+  final double progress;
+  final bool isCompleted, isClaimed;
+  final VoidCallback? onClaim;
+  final Color parchment;
+  final bool isDark;
+  final bool dimmed;
+
+  const _QuestCard({
+    required this.iconWidget, required this.iconBg,
+    required this.title, required this.xpLabel, required this.progressLabel,
+    required this.xpBg, required this.xpFg, required this.progressClass,
+    required this.progress, required this.isCompleted, required this.isClaimed,
+    required this.onClaim, required this.parchment, required this.isDark,
+    this.dimmed = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: dimmed ? 0.8 : 1.0,
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+        padding: const EdgeInsets.all(AppColors.stSpaceMd),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.kDarkSurface2 : const Color(0xFFFBF1E3),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: AppColors.kPrimaryGold.withOpacity(canClaim ? 0.8 : 0.4),
-            width: 1.5,
-            style: BorderStyle.solid,
-          ),
+          color: parchment,
+          borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+          border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.15), width: 1),
+          boxShadow: [BoxShadow(color: AppColors.stOutline.withOpacity(0.2), blurRadius: 0, offset: const Offset(0, 4))],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              _chestClaimed ? '✅' : (canClaim ? '🎁' : '📦'),
-              style: const TextStyle(fontSize: 56),
-            ).animate(target: canClaim ? 1 : 0).shake(duration: 1.seconds),
-            const SizedBox(height: 12),
-            Text(
-              _chestClaimed ? 'Klaim Berhasil!' : 'Peti Harta Harian',
-              style: GoogleFonts.montserrat(
-                fontWeight: FontWeight.w800, fontSize: 17,
-                color: _chestClaimed ? Colors.grey : AppColors.kPrimaryGold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // w-12 h-12 rounded-lg icon box
+                    Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        color: iconBg,
+                        borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
+                        border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
+                      ),
+                      child: Center(child: iconWidget),
+                    ),
+                    const SizedBox(width: AppColors.stSpaceMd),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: GoogleFonts.inter(
+                          fontSize: 16, fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
+                        )),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: xpBg,
+                            borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(isClaimed ? Icons.check_circle_rounded : Icons.star_rounded,
+                                size: 12, color: xpFg),
+                              const SizedBox(width: 2),
+                              Text(xpLabel, style: GoogleFonts.nunitoSans(
+                                fontSize: 10, fontWeight: FontWeight.w700, color: xpFg,
+                              )),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                // Claim button (gold-gradient) atau check icon jika claimed
+                if (isClaimed)
+                  Icon(Icons.check_circle_rounded, color: AppColors.stPrimary, size: 24)
+                else if (onClaim != null)
+                  GestureDetector(
+                    onTap: onClaim,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        // gold-gradient: #ffdea8→#ffb800, border-bottom 3px #7c5800
+                        gradient: const LinearGradient(
+                          colors: [AppColors.stPrimaryFixed, AppColors.stPrimaryContainer],
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                        ),
+                        borderRadius: BorderRadius.circular(AppColors.stRadiusLg),
+                        border: const Border(bottom: BorderSide(color: AppColors.stPrimary, width: 3)),
+                      ),
+                      child: Text('Claim', style: GoogleFonts.nunitoSans(
+                        fontSize: 12, fontWeight: FontWeight.w700,
+                        color: AppColors.stOnPrimaryContainer,
+                      )),
+                    ),
+                  )
+                else
+                  Icon(Icons.hourglass_top_rounded,
+                    color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline, size: 22),
+              ],
+            ),
+            const SizedBox(height: AppColors.stSpaceSm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(isClaimed ? 'BERHASIL' : 'PROGRESS', style: GoogleFonts.nunitoSans(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
+                )),
+                Text(progressLabel, style: GoogleFonts.nunitoSans(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
+                )),
+              ],
             ),
             const SizedBox(height: 4),
-            Text(
-              _chestClaimed
-                  ? 'Kembali lagi besok ya!'
-                  : (canClaim ? 'Ketuk untuk buka hadiah!' : 'Selesaikan semua quest untuk membuka!'),
-              style: GoogleFonts.inter(fontSize: 13, color: Colors.black54),
-              textAlign: TextAlign.center,
-            ),
+            // h-2 progress bar, gradient gold/mana
+            Stack(children: [
+              Container(height: 8, decoration: BoxDecoration(
+                color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+              )),
+              FractionallySizedBox(
+                widthFactor: progress,
+                child: Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: progressClass == 'mana'
+                          ? [const Color(0xFF2490FF), const Color(0xFF73E1FF)]
+                          : [AppColors.stPrimaryContainer, AppColors.stPrimaryFixed],
+                    ),
+                    borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                    boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.5), blurRadius: 2, offset: const Offset(0, 1))],
+                  ),
+                ),
+              ),
+            ]),
           ],
         ),
       ),
-    ).animate().fadeIn(delay: 400.ms);
+    );
+  }
+}
+
+// ── Weekly Quest Card ─────────────────────────────────────────────────────────
+class _WeeklyQuestCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor, borderColor, xpBg, xpFg, barColor, parchment;
+  final String title, xpLabel, label;
+  final double progress;
+
+  const _WeeklyQuestCard({
+    required this.icon, required this.iconColor, required this.borderColor,
+    required this.title, required this.xpLabel, required this.xpBg,
+    required this.xpFg, required this.progress, required this.label,
+    required this.barColor, required this.parchment,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 260, // min-w-[260px]
+      padding: const EdgeInsets.all(AppColors.stSpaceMd),
+      decoration: BoxDecoration(
+        color: parchment,
+        borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+        border: Border(left: BorderSide(color: borderColor, width: 4)),
+        boxShadow: [BoxShadow(color: AppColors.stOutline.withOpacity(0.2), blurRadius: 0, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(icon, color: iconColor, size: 20),
+            const SizedBox(width: 8),
+            Text(title, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
+          ]),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: xpBg, borderRadius: BorderRadius.circular(AppColors.stRadiusDefault)),
+                child: Text(xpLabel, style: GoogleFonts.nunitoSans(fontSize: 10, fontWeight: FontWeight.w700, color: xpFg)),
+              ),
+              Text(label, style: GoogleFonts.nunitoSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.stOutline)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Stack(children: [
+            Container(height: 6, decoration: BoxDecoration(
+              color: AppColors.stSurfaceContainerHighest, borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+            )),
+            FractionallySizedBox(widthFactor: progress,
+              child: Container(height: 6, decoration: BoxDecoration(
+                color: barColor, borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+              ))),
+          ]),
+        ],
+      ),
+    );
   }
 }
