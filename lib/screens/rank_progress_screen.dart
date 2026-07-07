@@ -6,6 +6,9 @@ import '../config/app_colors.dart';
 import '../widgets/rpg_app_bar.dart';
 import '../widgets/fantasy_rank_badge.dart';
 import '../widgets/fantasy_card.dart';
+import '../utils/prefs_service.dart';
+import '../models/calorie_provider.dart';
+import 'package:provider/provider.dart';
 
 class RankProgressScreen extends StatefulWidget {
   const RankProgressScreen({super.key});
@@ -64,396 +67,550 @@ class _RankProgressScreenState extends State<RankProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // arena-gradient: radial-gradient(circle at top, #362f24 0%, #211b11 100%)
+    // dipakai sebagai bg hero section (bukan seluruh screen)
     return Scaffold(
-      backgroundColor: AppColors.kBgCream,
-      appBar: RPGAppBar(screenKey: 'rank'),
+      backgroundColor: isDark ? AppColors.kDarkBg : AppColors.stBackground,
+      appBar: RPGAppBar(screenKey: 'rank', showSubtitle: true), // rank punya subtitle "Gold Warrior"
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Current Rank Display
-            FantasyCard(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                children: [
-                  Text(
-                    'CURRENT RANK',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.black38,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FantasyRankBadge(
-                    rankName: _currentRank,
-                    level: GamificationService.getCurrentLevel(_currentXP),
-                    progress: _progress,
-                    size: 160,
-                  ).animate().scale(duration: 800.ms, curve: Curves.elasticOut),
-                  const SizedBox(height: 32),
-                  _buildXPProgress(),
-                ],
-              ),
-            ).animate().fadeIn().slideY(begin: 0.1),
-            
-            const SizedBox(height: 32),
+            // 1. Hero Section — arena-gradient bg, rank badge, 5 stars, XP bar
+            _buildHeroSection(isDark),
+            const SizedBox(height: 24), // space-y-lg
 
-            _sectionTitle('RANK PROGRESSION'),
+            // 2. Jalur Pendakian (timeline)
+            Text('Jalur Pendakian', style: GoogleFonts.montserrat(
+              fontSize: 18, fontWeight: FontWeight.w700,
+              color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
+            )),
             const SizedBox(height: 16),
-            _buildRankStepper(),
-
+            _buildRankTimeline(isDark),
             const SizedBox(height: 24),
 
-            // ── Next Rank Reward Detail — sesuai desain Stitch ───────────────
-            _buildNextRankRewardCard(),
+            // 3. Next Rank Card
+            _buildNextRankCard(isDark),
+            const SizedBox(height: 24),
 
-            const SizedBox(height: 32),
-            
-            _sectionTitle('LEADERBOARD'),
-            const SizedBox(height: 16),
-            _buildLeaderboard(),
-            const SizedBox(height: 100),
+            // 4. Papan Peringkat
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Papan Peringkat', style: GoogleFonts.montserrat(
+                  fontSize: 18, fontWeight: FontWeight.w700,
+                  color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
+                )),
+                Text('Lihat Semua', style: GoogleFonts.nunitoSans(
+                  fontSize: 12, fontWeight: FontWeight.w700,
+                  color: isDark ? AppColors.stPrimaryFixed : AppColors.stPrimary,
+                )),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildLeaderboard(isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        title,
-        style: GoogleFonts.poppins(
-          fontSize: 14,
-          fontWeight: FontWeight.w900,
-          color: Colors.black87,
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
+  // ── Hero Section ─────────────────────────────────────────────────────────
+  Widget _buildHeroSection(bool isDark) {
+    final rankName = _getRankDisplayName(_currentRank);
+    final xpNeeded = (_xpForNextRank - _currentXP).clamp(0, _xpForNextRank);
+    // Format ribuan
+    String fmt(int n) {
+      final s = n.toString();
+      final buf = StringBuffer();
+      for (int i = 0; i < s.length; i++) {
+        if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+        buf.write(s[i]);
+      }
+      return buf.toString();
+    }
 
-  Widget _buildXPProgress() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '$_currentXP XP',
-              style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, color: AppColors.kPrimaryOrange),
-            ),
-            Text(
-              '$_xpForNextRank XP',
-              style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, color: Colors.black38),
-            ),
-          ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20), // py-xl
+      // arena-gradient: radial-gradient dark background
+      decoration: BoxDecoration(
+        gradient: const RadialGradient(
+          center: Alignment.topCenter,
+          radius: 1.2,
+          colors: [Color(0xFF362F24), Color(0xFF211B11)],
         ),
-        const SizedBox(height: 8),
-        Stack(
-          children: [
-            Container(
-              height: 10,
-              width: double.infinity,
-              decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(5)),
+        borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+        // glow-pulse shadow: rgba(255,184,0,0.4)
+        boxShadow: [BoxShadow(color: AppColors.stPrimaryContainer.withOpacity(0.4), blurRadius: 20)],
+      ),
+      child: Column(
+        children: [
+          // Rank badge — w-40 h-40, glow-pulse
+          Container(
+            width: 160, height: 160,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.stPrimaryContainer.withOpacity(0.2),
+              boxShadow: [
+                BoxShadow(color: AppColors.stPrimaryContainer.withOpacity(0.4), blurRadius: 25),
+                BoxShadow(color: AppColors.stPrimaryContainer.withOpacity(0.8), blurRadius: 50),
+              ],
             ),
-            FractionallySizedBox(
-              widthFactor: _progress,
-              child: Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  gradient: AppColors.kGradientSunset,
-                  borderRadius: BorderRadius.circular(5),
-                  boxShadow: [
-                    BoxShadow(color: AppColors.kPrimaryOrange.withOpacity(0.3), blurRadius: 4),
+            child: Center(
+              child: Text(
+                _getRankEmoji(_currentRank),
+                style: const TextStyle(fontSize: 80),
+              ).animate(onPlay: (c) => c.repeat(reverse: true))
+                .custom(duration: 3.seconds, curve: Curves.easeInOut,
+                  builder: (ctx, v, child) => Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(
+                        color: AppColors.stPrimaryContainer.withOpacity(0.4 + v * 0.4),
+                        blurRadius: 10 + v * 15,
+                      )],
+                    ),
+                    child: child,
+                  )),
+            ),
+          ).animate().scale(duration: 800.ms, curve: Curves.elasticOut),
+          const SizedBox(height: 16), // mb-lg
+
+          // Rank name — display-hero font
+          Text(rankName, style: GoogleFonts.montserrat(
+            fontSize: 36, fontWeight: FontWeight.w900,
+            letterSpacing: -0.02 * 36, height: 40 / 36,
+            color: AppColors.stPrimaryContainer,
+          )),
+
+          // 5 bintang
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (_) =>
+              Icon(Icons.star_rounded, color: AppColors.stPrimary, size: 24)),
+          ),
+          const SizedBox(height: 16), // mb-md
+
+          // XP bar — max-w-[280px]
+          SizedBox(
+            width: 280,
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('XP', style: GoogleFonts.nunitoSans(
+                      fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.stOutline,
+                    )),
+                    Text('${fmt(_currentXP)} / ${fmt(_xpForNextRank)}',
+                      style: GoogleFonts.nunitoSans(
+                        fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.stOutline,
+                      )),
                   ],
                 ),
+                const SizedBox(height: 4),
+                // h-4, bg-surface-container-high, gradient primary→secondary-container
+                Stack(children: [
+                  Container(height: 16, decoration: BoxDecoration(
+                    color: AppColors.stSurfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                    border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3), width: 1),
+                  )),
+                  FractionallySizedBox(
+                    widthFactor: _progress,
+                    child: Container(
+                      height: 16,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.stPrimary, AppColors.stSecondaryContainer],
+                        ),
+                        borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                      ),
+                      // animated shimmer overlay
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                        ),
+                      ),
+                    ).animate(onPlay: (c) => c.repeat()).shimmer(duration: 2.seconds),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Jalur Pendakian (Timeline) ───────────────────────────────────────────
+  Widget _buildRankTimeline(bool isDark) {
+    final ranks = [
+      ('Bronze', Icons.shield_rounded),
+      ('Silver', Icons.shield_moon_rounded),
+      ('Gold', Icons.military_tech_rounded),
+      ('Diamond', Icons.diamond_rounded),
+      ('Legend', Icons.workspace_premium_rounded),
+    ];
+    final currentIdx = _rankOrder.indexOf(_currentRank);
+
+    return SizedBox(
+      height: 80,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Base line — surface-container-highest
+          Positioned(
+            left: 0, right: 0, top: 20,
+            child: Container(height: 4,
+              color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerHighest),
+          ),
+          // Progress line — primary with glow
+          Positioned(
+            left: 0, top: 20,
+            child: Container(
+              height: 4,
+              width: (MediaQuery.of(context).size.width - 80) * ((currentIdx + 1) / ranks.length),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.stPrimaryFixed : AppColors.stPrimary,
+                boxShadow: [BoxShadow(color: AppColors.stPrimary.withOpacity(0.5), blurRadius: 8)],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          _nextRank == 'Max Rank'
-              ? 'YOU ARE AT THE TOP! 👑'
-              : 'Need ${(_xpForNextRank - _currentXP)} XP more for $_nextRank',
-          style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: Colors.black54, fontSize: 12),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRankStepper() {
-    return FantasyCard(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: _rankOrder.map((rank) {
-            bool isCurrent = rank == _currentRank;
-            bool isPast = _rankOrder.indexOf(rank) < _rankOrder.indexOf(_currentRank);
-            
-            return Row(
-              children: [
-                Column(
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: isCurrent || isPast ? AppColors.kPrimaryGold.withOpacity(0.1) : Colors.grey[50],
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isCurrent ? AppColors.kPrimaryGold : (isPast ? AppColors.kPrimaryGold.withOpacity(0.5) : Colors.grey[200]!),
-                          width: 2,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          _getRankIcon(rank),
-                          style: TextStyle(
-                            fontSize: 24,
-                            color: Colors.black.withOpacity(isCurrent || isPast ? 1.0 : 0.3),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      rank,
-                      style: GoogleFonts.nunito(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: isCurrent ? AppColors.kPrimaryGold : Colors.black38,
-                      ),
-                    ),
-                  ],
-                ),
-                if (rank != _rankOrder.last)
+          ),
+          // Nodes
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: ranks.asMap().entries.map((e) {
+              final idx = e.key;
+              final (label, icon) = e.value;
+              final isActive = idx <= currentIdx;
+              final isCurrent = idx == currentIdx;
+              return Column(
+                children: [
                   Container(
-                    width: 30,
-                    height: 2,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    color: isPast ? AppColors.kPrimaryGold.withOpacity(0.5) : Colors.grey[100],
+                    width: isCurrent ? 48 : 40,
+                    height: isCurrent ? 48 : 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isActive
+                          ? (isCurrent ? AppColors.stPrimaryContainer : AppColors.stPrimary)
+                          : (isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerHighest),
+                      border: Border.all(
+                        color: isDark ? AppColors.kDarkBg : AppColors.stBackground,
+                        width: 4, // ring-4 ring-background
+                      ),
+                      boxShadow: isActive ? [
+                        BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6, offset: const Offset(0, 2)),
+                      ] : null,
+                    ),
+                    child: Icon(
+                      icon,
+                      size: isCurrent ? 22 : 18,
+                      color: isActive
+                          ? (isCurrent ? AppColors.stOnPrimaryContainer : AppColors.stOnPrimary)
+                          : (isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant),
+                    ),
                   ),
-              ],
-            );
-          }).toList(),
-        ),
+                  const SizedBox(height: 4),
+                  Opacity(
+                    opacity: isActive ? 1.0 : 0.5,
+                    child: Text(label, style: GoogleFonts.nunitoSans(
+                      fontSize: 10, fontWeight: FontWeight.w700,
+                      color: isActive
+                          ? (isDark ? AppColors.stPrimaryFixed : AppColors.stPrimary)
+                          : (isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant),
+                    )),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
 
-  String _getRankIcon(String rank) {
-    switch (rank) {
-      case 'Bronze': return '🥉';
-      case 'Silver': return '🥈';
-      case 'Gold': return '🥇';
-      case 'Diamond': return '💎';
-      case 'Spartan': return '👑';
-      default: return '🛡️';
-    }
-  }
-
-  // ── Next Rank reward detail — sesuai desain Stitch ───────────────────────
-  Widget _buildNextRankRewardCard() {
+  // ── Next Rank Card ────────────────────────────────────────────────────────
+  Widget _buildNextRankCard(bool isDark) {
     if (_nextRank == 'Max Rank') {
-      return FantasyCard(
-        padding: const EdgeInsets.all(20),
-        gradient: const LinearGradient(colors: [Color(0x1AFFB800), Colors.white]),
+      return Container(
+        padding: const EdgeInsets.all(AppColors.stSpaceMd),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainerLow,
+          borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+          border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.5)),
+        ),
         child: Row(
           children: [
             const Text('👑', style: TextStyle(fontSize: 40)),
             const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                'Kamu sudah mencapai rank tertinggi! Pertahankan posisimu di puncak.',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
-              ),
-            ),
+            Expanded(child: Text('Kamu sudah mencapai rank tertinggi!',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: isDark ? AppColors.kDarkText : AppColors.stOnSurface))),
           ],
         ),
       );
     }
 
     final xpNeeded = (_xpForNextRank - _currentXP).clamp(0, _xpForNextRank);
-
-    return FantasyCard(
-      padding: const EdgeInsets.all(20),
-      border: Border.all(color: AppColors.kPrimaryGold.withOpacity(0.4), width: 1.5),
+    return Container(
+      padding: const EdgeInsets.all(AppColors.stSpaceMd),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+        border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.5)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              // Rank preview box — w-20 h-20 bg-surface border rounded-lg
               Container(
-                width: 56,
-                height: 56,
+                width: 80, height: 80,
                 decoration: BoxDecoration(
-                  color: AppColors.kPrimaryGold.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
+                  color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurface,
+                  borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
+                  border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
                 ),
-                child: Center(
-                  child: Text(_getRankIcon(_nextRank), style: const TextStyle(fontSize: 28)),
-                ),
+                child: Center(child: Text(_getRankEmoji(_nextRank), style: const TextStyle(fontSize: 40))),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '$_nextRank Warrior',
-                      style: GoogleFonts.montserrat(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.black87),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('$_nextRank Warrior', style: GoogleFonts.montserrat(
+                          fontSize: 18, fontWeight: FontWeight.w700,
+                          color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
+                        )),
+                        // bg-secondary text-on-secondary, rounded-full, uppercase
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.stSecondary,
+                            borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                          ),
+                          child: Text('Next Rank', style: GoogleFonts.nunitoSans(
+                            fontSize: 10, fontWeight: FontWeight.w700,
+                            color: AppColors.stOnSecondary, letterSpacing: 0.5,
+                          )),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'Butuh $xpNeeded XP lagi untuk naik tingkat.',
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.black54),
-                    ),
+                    const SizedBox(height: 4),
+                    Text('Butuh $xpNeeded XP lagi untuk naik tingkat.',
+                      style: GoogleFonts.inter(fontSize: 14,
+                        color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant)),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFB23B00),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Text(
-                  'NEXT RANK',
-                  style: GoogleFonts.nunitoSans(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5),
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
-          // Grid 2x2 reward unlock
-          Row(
-            children: [
-              Expanded(child: _RewardChip(icon: Icons.face_retouching_natural_rounded, label: 'Avatar Frame')),
-              const SizedBox(width: 10),
-              Expanded(child: _RewardChip(icon: Icons.verified_rounded, label: 'Gelar Eksklusif')),
-            ],
+          // Divider + reward grid 2x2
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Divider(color: AppColors.stOutlineVariant.withOpacity(0.3), height: 1),
           ),
-          const SizedBox(height: 10),
-          Row(
+          const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: 2, shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 8, mainAxisSpacing: 8,
+            childAspectRatio: 3.5,
             children: [
-              Expanded(child: _RewardChip(icon: Icons.support_agent_rounded, label: 'Coach Premium')),
-              const SizedBox(width: 10),
-              Expanded(child: _RewardChip(icon: Icons.trending_up_rounded, label: 'Bonus XP +10%')),
+              _RewardItem(icon: Icons.face_retouching_natural_rounded, label: 'Avatar Frame', isDark: isDark),
+              _RewardItem(icon: Icons.verified_rounded, label: 'Gelar Eksklusif', isDark: isDark),
+              _RewardItem(icon: Icons.smart_toy_rounded, label: 'Coach Premium', isDark: isDark),
+              _RewardItem(icon: Icons.trending_up_rounded, label: 'Bonus XP +10%', isDark: isDark),
             ],
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.05);
-  }
-
-  Widget _buildLeaderboard() {
-    // Mock Leaderboard Data
-    final List<Map<String, dynamic>> leaderboard = [
-      {'name': 'Ariq (You)', 'xp': _currentXP, 'rank': _currentRank, 'isMe': true},
-      {'name': 'Budi Pekerti', 'xp': 1250, 'rank': 'Gold', 'isMe': false},
-      {'name': 'Siti Nurhaliza', 'xp': 980, 'rank': 'Silver', 'isMe': false},
-      {'name': 'Andi Wijaya', 'xp': 850, 'rank': 'Silver', 'isMe': false},
-      {'name': 'Rina Pratama', 'xp': 420, 'rank': 'Bronze', 'isMe': false},
-    ];
-
-    leaderboard.sort((a, b) => b['xp'].compareTo(a['xp']));
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: AppColors.kSoftShadow,
-      ),
-      child: Column(
-        children: leaderboard.asMap().entries.map((entry) {
-          int index = entry.key;
-          var user = entry.value;
-          bool isMe = user['isMe'];
-
-          return Column(
-            children: [
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                leading: _buildRankPosition(index + 1),
-                title: Text(
-                  user['name'],
-                  style: GoogleFonts.poppins(
-                    fontWeight: isMe ? FontWeight.w900 : FontWeight.bold,
-                    color: isMe ? AppColors.kPrimaryOrange : Colors.black87,
-                    fontSize: 14,
-                  ),
-                ),
-                subtitle: Text(
-                  '${user['rank']} Warrior',
-                  style: GoogleFonts.inter(fontSize: 11, color: Colors.black38, fontWeight: FontWeight.w600),
-                ),
-                trailing: Text(
-                  '${user['xp']} XP',
-                  style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, color: isMe ? AppColors.kPrimaryOrange : Colors.black54),
-                ),
-              ),
-              if (index != leaderboard.length - 1)
-                Divider(height: 1, indent: 70, color: Colors.grey[50]),
-            ],
-          );
-        }).toList(),
-      ),
     );
   }
 
-  Widget _buildRankPosition(int pos) {
-    if (pos == 1) return const Text('🥇', style: TextStyle(fontSize: 24));
-    if (pos == 2) return const Text('🥈', style: TextStyle(fontSize: 24));
-    if (pos == 3) return const Text('🥉', style: TextStyle(fontSize: 24));
-    
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
-      child: Center(
-        child: Text(
-          '$pos',
-          style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.black38),
+  // ── Leaderboard ───────────────────────────────────────────────────────────
+  Widget _buildLeaderboard(bool isDark) {
+    // Mock leaderboard data — sesuai HTML asli
+    final entries = [
+      (_currentXP, PrefsService.i.name, _currentRank, true),
+      (12840, 'Arya_Storm', 'Mythic Legend', false),
+      (11200, 'Green_Arrow', 'Mythic Legend', false),
+      (9850, 'Pyromancer99', 'Legend IV', false),
+    ]..sort((a, b) => b.$1.compareTo(a.$1));
+
+    final userRank = entries.indexWhere((e) => e.$4) + 1;
+
+    return Column(
+      children: [
+        // User row highlighted — bg-primary-container + ring-2 ring-primary
+        _LeaderboardRow(
+          position: userRank,
+          name: '${PrefsService.i.name} (Paladin)',
+          subtitle: '$_currentRank',
+          xp: _currentXP,
+          isHighlighted: true,
+          isDark: isDark,
         ),
+        const SizedBox(height: 8),
+        ...entries.where((e) => !e.$4).take(3).toList().asMap().entries.map((e) {
+          final pos = e.key + 1;
+          final (xp, name, title, _) = e.value;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _LeaderboardRow(
+              position: pos,
+              name: name,
+              subtitle: title,
+              xp: xp,
+              isHighlighted: false,
+              isDark: isDark,
+              opacity: pos == 1 ? 1.0 : (pos == 2 ? 0.9 : 0.8),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  String _getRankDisplayName(String rank) => switch (rank) {
+    'Bronze' => 'Bronze Warrior',
+    'Silver' => 'Silver Warrior',
+    'Gold'   => 'Gold Warrior',
+    'Diamond'=> 'Diamond Warrior',
+    _        => 'Spartan',
+  };
+
+  String _getRankEmoji(String rank) => switch (rank) {
+    'Bronze' => '🥉',
+    'Silver' => '🥈',
+    'Gold'   => '🥇',
+    'Diamond'=> '💎',
+    _        => '👑',
+  };
+
+  String _getRankIcon(String rank) => rank; // kept for compat
+}
+
+class _RewardItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDark;
+  const _RewardItem({required this.icon, required this.label, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.kDarkSurface.withOpacity(0.5) : AppColors.stSurface.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppColors.stSecondary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(label,
+              style: GoogleFonts.nunitoSans(fontSize: 11, fontWeight: FontWeight.w700,
+                color: isDark ? AppColors.kDarkText : AppColors.stOnSurface),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ── Reward chip kecil untuk grid Next Rank ──────────────────────────────────
-class _RewardChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _RewardChip({required this.icon, required this.label});
+class _LeaderboardRow extends StatelessWidget {
+  final int position;
+  final String name, subtitle;
+  final int xp;
+  final bool isHighlighted, isDark;
+  final double opacity;
+
+  const _LeaderboardRow({
+    required this.position, required this.name, required this.subtitle,
+    required this.xp, required this.isHighlighted, required this.isDark,
+    this.opacity = 1.0,
+  });
+
+  String _fmt(int n) {
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFBF1E3),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: const Color(0xFF8A5A1E)),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black87),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    final fg = isHighlighted ? AppColors.stOnPrimaryContainer
+        : (isDark ? AppColors.kDarkText : AppColors.stOnSurface);
+    final sub = isHighlighted ? AppColors.stOnPrimaryContainer.withOpacity(0.8)
+        : (isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant);
+
+    return Opacity(
+      opacity: opacity,
+      child: Container(
+        padding: const EdgeInsets.all(AppColors.stSpaceMd),
+        decoration: BoxDecoration(
+          color: isHighlighted ? AppColors.stPrimaryContainer
+              : (isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer),
+          borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+          border: isHighlighted
+              ? Border.all(color: AppColors.stPrimary, width: 2)
+              : Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
+          boxShadow: isHighlighted
+              ? [BoxShadow(color: AppColors.stPrimary.withOpacity(0.15), blurRadius: 8)]
+              : null,
+        ),
+        child: Row(
+          children: [
+            SizedBox(width: 32,
+              child: Text('$position', style: GoogleFonts.montserrat(
+                fontSize: 20, fontWeight: FontWeight.w900, color: fg))),
+            Container(
+              width: 48, height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isHighlighted ? AppColors.stPrimaryFixed
+                    : (isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerHigh),
+                border: Border.all(
+                  color: isHighlighted ? AppColors.stOnPrimaryContainer.withOpacity(0.2)
+                      : AppColors.stOutlineVariant.withOpacity(0.3), width: 2),
+              ),
+              child: Center(child: Icon(Icons.person_rounded,
+                color: isHighlighted ? AppColors.stOnPrimaryContainer : AppColors.stOutline, size: 24)),
             ),
-          ),
-        ],
+            const SizedBox(width: AppColors.stSpaceMd),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: GoogleFonts.nunitoSans(
+                  fontSize: 14, fontWeight: FontWeight.w700, color: fg),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(subtitle, style: GoogleFonts.inter(fontSize: 12, color: sub)),
+              ],
+            )),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(_fmt(xp), style: GoogleFonts.montserrat(
+                fontSize: 18, fontWeight: FontWeight.w900, color: fg)),
+              Text('XP', style: GoogleFonts.nunitoSans(
+                fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1, color: sub)),
+            ]),
+          ],
+        ),
       ),
     );
   }

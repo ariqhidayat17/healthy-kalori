@@ -494,7 +494,7 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.kBgCream,
+      backgroundColor: AppColors.stBackground,
       appBar: RPGAppBar(screenKey: 'food'),
       body: Column(
         children: [

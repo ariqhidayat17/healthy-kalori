@@ -133,7 +133,7 @@ class AppColors {
   static const Color stErrorContainer           = Color(0xFFFFDAD6);
   static const Color stOnErrorContainer         = Color(0xFF93000A);
 
-  // ── Spacing tokens (dari tailwind.config "spacing") ───────────────────────
+  // ── Spacing tokens (dari DESIGN.md) ──────────────────────────────────────
   static const double stSpaceXs   = 4;
   static const double stSpaceSm   = 8;
   static const double stSpaceMd   = 16;
@@ -142,9 +142,25 @@ class AppColors {
   static const double stContainerMargin = 20;
   static const double stStackGap  = 12;
 
-  // ── Border radius tokens ───────────────────────────────────────────────────
-  static const double stRadiusDefault = 4;
-  static const double stRadiusLg      = 8;
-  static const double stRadiusXl      = 12;
+  // ── Border radius tokens (dari DESIGN.md rounded) ────────────────────────
+  // Cards: 20px, Buttons: 16px (bukan 12px seperti sebelumnya)
+  static const double stRadiusSm      = 4;   // rounded-sm = 0.25rem
+  static const double stRadiusDefault = 8;   // rounded = 0.5rem (DEFAULT)
+  static const double stRadiusMd      = 12;  // rounded-md = 0.75rem
+  static const double stRadiusLg      = 16;  // rounded-lg = 1rem (BUTTONS)
+  static const double stRadiusXl      = 20;  // rounded-xl = 1.5rem (CARDS! bukan 12)
   static const double stRadiusFull    = 9999;
+
+  // ── Input field tokens (dari DESIGN.md) ──────────────────────────────────
+  // Background: "Modal Cream" (#FFF3E0), border: 1px amber
+  static const Color stInputBg     = Color(0xFFFFF3E0);
+  static const Color stInputBorder = Color(0xFFFFB800); // amber = primary-container
+
+  // ── Elevation shadows (dari DESIGN.md "Hero Lift") ───────────────────────
+  static List<BoxShadow> stHeroShadow = [
+    BoxShadow(
+      color: const Color(0xFFFC8A40).withOpacity(0.3), // rgba(255,140,66,0.3)
+      blurRadius: 12,
+    ),
+  ];
 }

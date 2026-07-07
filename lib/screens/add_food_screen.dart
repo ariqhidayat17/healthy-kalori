@@ -62,13 +62,6 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   bool _isLoadingAI = false;
   List<String> _filteredFoods = [];
 
-  static const _quickFinds = [
-    ('Ayam Bakar', '🍗', 'Rare'),
-    ('Nasi Putih', '🍚', 'Common'),
-    ('Telur Rebus', '🥚', 'Common'),
-    ('Whey Protein', '🥤', 'Epic'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -264,28 +257,27 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
       backgroundColor: isDark ? AppColors.kDarkBg : AppColors.kBgCream,
       appBar: const RPGAppBar(screenKey: 'food', showSubtitle: false),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        // px-container-margin (20) mt-lg (24) gap-xl (32) — sesuai <main>
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSearchBar(isDark),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32), // gap-xl
             Text(
               'Temuan Cepat',
-              style: GoogleFonts.montserrat(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: isDark ? AppColors.kDarkText : const Color(0xFF211B11),
+              style: GoogleFonts.montserrat( // font-headline-md
+                fontSize: 20, // text-headline-md
+                fontWeight: FontWeight.w700,
+                color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16), // mb-md
             _buildQuickFindsGrid(isDark),
             const SizedBox(height: 12),
             if (_searchController.text.isNotEmpty) _buildSearchResults(isDark),
-            const SizedBox(height: 16),
+            const SizedBox(height: 32), // gap-xl sebelum Manual Input Form
             _buildFormCard(isDark),
-            const SizedBox(height: 20),
-            _buildSaveButton(),
           ],
         ),
       ),
@@ -293,53 +285,67 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   }
 
   Widget _buildSearchBar(bool isDark) {
+    // Spek HTML: input pl-12 pr-32 py-4, bg-surface-container,
+    // border-2 outline-variant, rounded-full, shadow-sm.
+    // 3 tombol kanan: qr_code_scanner (bg primary), mic (bg surface-container-highest),
+    // psychology (bg tertiary-container) — BUKAN auto_awesome.
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.kDarkSurface : Colors.white,
+        color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer,
         borderRadius: BorderRadius.circular(100),
         border: Border.all(
-          color: isDark ? AppColors.kDarkBorder : const Color(0xFFEDE1D0),
+          color: isDark ? AppColors.kDarkBorder : AppColors.stOutlineVariant,
+          width: 2, // border-2
         ),
-        boxShadow: isDark ? null : AppColors.kSoftShadow,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1)),
+        ],
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
       child: Row(
         children: [
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
           Icon(Icons.search_rounded,
-              color: isDark ? AppColors.kDarkTextSub : Colors.grey, size: 22),
+              color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline, size: 22),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: _searchController,
               onChanged: _onSearchChanged,
-              style: GoogleFonts.inter(fontSize: 14),
+              style: GoogleFonts.nunitoSans(fontSize: 14, fontWeight: FontWeight.w700), // font-label-bold
               decoration: InputDecoration(
                 hintText: 'Cari makanan atau scan...',
-                hintStyle: GoogleFonts.inter(
+                hintStyle: GoogleFonts.nunitoSans(
                   fontSize: 14,
-                  color: isDark ? AppColors.kDarkTextSub : Colors.grey[500],
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
                 ),
                 border: InputBorder.none,
                 isDense: true,
               ),
             ),
           ),
+          // qr_code_scanner — bg primary solid, icon primary-container (gold)
           _CircleIconBtn(
             icon: Icons.qr_code_scanner_rounded,
-            bg: const Color(0xFF6B4F1E),
+            bg: AppColors.stPrimary,
+            iconColor: AppColors.stPrimaryContainer,
             onTap: _scanBarcode,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4), // gap-xs
+          // mic — bg surface-container-highest, icon on-surface-variant
           _CircleIconBtn(
             icon: Icons.mic_rounded,
-            bg: Colors.grey[400]!,
+            bg: AppColors.stSurfaceContainerHighest,
+            iconColor: AppColors.stOnSurfaceVariant,
             onTap: () => AppSnackbar.info(context, 'Voice input segera tersedia!'),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
+          // psychology (BUKAN auto_awesome) — bg tertiary-container, icon on-tertiary
           _CircleIconBtn(
-            icon: Icons.auto_awesome_rounded,
-            bg: AppColors.kPrimaryGold,
+            icon: Icons.psychology_rounded,
+            bg: AppColors.stTertiaryContainer,
+            iconColor: AppColors.stOnTertiary,
             onTap: _scanWithAIVision,
             isLoading: _isLoadingAI,
           ),
@@ -349,57 +355,63 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   }
 
   Widget _buildQuickFindsGrid(bool isDark) {
+    // Item & warna persis dari HTML:
+    // 1. Ayam Bakar  → icon egg_alt,        bg secondary-container/20, icon color secondary,  label "RARE ITEM"
+    // 2. Nasi Putih  → icon rice_bowl,      bg primary-container/20,   icon color primary,     label "COMMON"
+    // 3. Telur Rebus → icon cooking,        bg tertiary-container/20,  icon color tertiary,    label "COMMON"
+    // 4. Whey Protein→ icon vaping_rooms,   bg inverse-primary/20,     icon color primary,     label "EPIC ITEM"
+    final items = [
+      (name: 'Ayam Bakar', icon: Icons.egg_alt_rounded, iconColor: AppColors.stSecondary, bg: AppColors.stSecondaryContainer.withOpacity(0.2), rarity: 'Rare', badge: 'RARE ITEM'),
+      (name: 'Nasi Putih', icon: Icons.rice_bowl_rounded, iconColor: AppColors.stPrimary, bg: AppColors.stPrimaryContainer.withOpacity(0.2), rarity: 'Common', badge: 'COMMON'),
+      (name: 'Telur Rebus', icon: Icons.outdoor_grill_rounded, iconColor: AppColors.stTertiary, bg: AppColors.stTertiaryContainer.withOpacity(0.2), rarity: 'Common', badge: 'COMMON'),
+      (name: 'Whey Protein', icon: Icons.icecream_rounded, iconColor: AppColors.stPrimary, bg: AppColors.stInversePrimary.withOpacity(0.2), rarity: 'Epic', badge: 'EPIC ITEM'),
+    ];
+
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 1.7,
-      children: _quickFinds.map((item) {
-        final (name, emoji, rarity) = item;
-        final rarityColor = switch (rarity) {
-          'Legendary' => AppColors.kRarityLegendary,
-          'Epic' => AppColors.kRarityEpic,
-          'Rare' => AppColors.kRarityRare,
-          _ => AppColors.kRarityCommon,
-        };
+      mainAxisSpacing: 16, // gap-md
+      crossAxisSpacing: 16,
+      childAspectRatio: 1.5,
+      children: items.map((item) {
         return GestureDetector(
-          onTap: () => _selectQuickFind(name, rarity),
+          onTap: () => _selectQuickFind(item.name, item.rarity),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16), // p-md
             decoration: BoxDecoration(
-              color: isDark ? AppColors.kDarkSurface2 : const Color(0xFFFBF1E3),
-              borderRadius: BorderRadius.circular(16),
+              color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerLow,
+              borderRadius: BorderRadius.circular(12), // rounded-xl
+              border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
+              boxShadow: [
+                // inner-bevel: inset 0 1px 1px rgba(255,255,255,0.6)
+                BoxShadow(color: Colors.white.withOpacity(0.6), blurRadius: 1, offset: const Offset(0, 1)),
+              ],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: rarityColor.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                      child: Text(emoji, style: const TextStyle(fontSize: 18))),
+                  width: 48, // w-12
+                  height: 48,
+                  decoration: BoxDecoration(color: item.bg, shape: BoxShape.circle),
+                  child: Icon(item.icon, color: item.iconColor, size: 28), // text-3xl
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4), // gap-xs
                 Text(
-                  name,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.kDarkText : const Color(0xFF211B11),
+                  item.name,
+                  style: GoogleFonts.nunitoSans( // font-label-bold
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
                   ),
                 ),
                 Text(
-                  rarity.toUpperCase(),
-                  style: GoogleFonts.nunitoSans(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    color: rarityColor,
+                  item.badge,
+                  style: GoogleFonts.inter( // text-[10px], bukan label-bold
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.stOutline,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -443,159 +455,288 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
   }
 
   Widget _buildFormCard(bool isDark) {
+    // Manual Input Form — bg surface-container-high, p-lg, rounded-xl,
+    // border-2 outline-variant/50, shadow-inner. Tombol Simpan ADA DI DALAM
+    // card ini (bukan terpisah di luar seperti implementasi sebelumnya).
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24), // p-lg
       decoration: BoxDecoration(
-        color: isDark ? AppColors.kDarkSurface2 : const Color(0xFFFBF1E3),
-        borderRadius: BorderRadius.circular(24),
+        color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12), // rounded-xl
+        border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.5), width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _FieldLabel('Nama Item', isDark),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8), // gap-sm
           _StyledTextField(controller: _nameController, hint: 'Masukkan nama makanan...', isDark: isDark),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24), // gap-lg antar field section
+
+          // Apex Button — apex-gradient: linear-gradient(135deg, #6366f1, #a855f7)
           GestureDetector(
             onTap: _isLoadingAI ? null : _autoFillWithAI,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24), // py-4 px-lg
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFF6A4FE0), Color(0xFF9B7BFF)]),
-                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6366F1), Color(0xFFA855F7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12), // rounded-xl
+                boxShadow: [
+                  // pulse-glow keyframe disederhanakan jadi static glow ungu
+                  BoxShadow(color: const Color(0xFFA855F7).withOpacity(0.4), blurRadius: 12),
+                ],
               ),
-              child: Center(
-                child: _isLoadingAI
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
+              child: _isLoadingAI
+                  ? const Center(
+                      child: SizedBox(
+                        width: 20, height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            'ISI OTOMATIS DENGAN APEX',
-                            style: GoogleFonts.nunitoSans(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white),
-                          ),
-                        ],
                       ),
-              ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 32, height: 32, // w-8 h-8
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.psychology_rounded, color: Colors.white, size: 18),
+                        ),
+                        const SizedBox(width: 16), // gap-md
+                        Text(
+                          'ISI OTOMATIS DENGAN APEX',
+                          style: GoogleFonts.montserrat( // font-headline-md
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 14),
+                      ],
+                    ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 24), // gap-lg
+
+          // Macros Grid — font stat-number (Montserrat), warna BERBEDA per field
           Row(
             children: [
-              Expanded(child: _buildMacroInput('KALORI (KCAL)', _caloriesController, isDark)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildMacroInput('PROTEIN (G)', _proteinController, isDark)),
+              Expanded(child: _buildMacroInput('Kalori (kcal)', _caloriesController, isDark, AppColors.stPrimary)),
+              const SizedBox(width: 16), // gap-md
+              Expanded(child: _buildMacroInput('Protein (g)', _proteinController, isDark, AppColors.stSecondary)),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildMacroInput('KARBOHIDRAT (G)', _carbsController, isDark)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildMacroInput('LEMAK (G)', _fatsController, isDark)),
+              Expanded(child: _buildMacroInput('Karbohidrat (g)', _carbsController, isDark, AppColors.stTertiary)),
+              const SizedBox(width: 16),
+              Expanded(child: _buildMacroInput('Lemak (g)', _fatsController, isDark, AppColors.stOnSurfaceVariant)),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 24),
+
+          // Portion Stepper — button bulat primary-container, BUKAN gold custom
           _FieldLabel('Porsi (gram)', isDark),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              _RoundStepperBtn(
-                icon: Icons.remove_rounded,
-                onTap: () => setState(() {
-                  _portion = (_portion - 10).clamp(10, 9999);
-                  _recalculate();
-                }),
-              ),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    '$_portion',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? AppColors.kDarkText : const Color(0xFF211B11),
-                    ),
+          Container(
+            padding: const EdgeInsets.all(8), // p-2
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainerLowest,
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(color: isDark ? AppColors.kDarkBorder : AppColors.stOutlineVariant),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _RoundStepperBtn(
+                  icon: Icons.remove_rounded,
+                  onTap: () => setState(() {
+                    _portion = (_portion - 10).clamp(10, 9999);
+                    _recalculate();
+                  }),
+                ),
+                Text(
+                  '$_portion',
+                  style: GoogleFonts.montserrat( // font-stat-number
+                    fontSize: 20, // text-headline-md
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
                   ),
                 ),
-              ),
-              _RoundStepperBtn(
-                icon: Icons.add_rounded,
-                onTap: () => setState(() {
-                  _portion = (_portion + 10).clamp(10, 9999);
-                  _recalculate();
-                }),
-              ),
-            ],
+                _RoundStepperBtn(
+                  icon: Icons.add_rounded,
+                  onTap: () => setState(() {
+                    _portion = (_portion + 10).clamp(10, 9999);
+                    _recalculate();
+                  }),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 24),
+
+          // Rarity Selector — 4 opsi dengan deskripsi lengkap sesuai HTML
           _FieldLabel('Tingkat Kelangkaan (Rarity)', isDark),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.kDarkSurface : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? AppColors.kDarkBorder : Colors.grey[300]!),
+              color: isDark ? AppColors.kDarkSurface : AppColors.stSurface,
+              borderRadius: BorderRadius.circular(8), // rounded-lg
+              border: Border.all(color: isDark ? AppColors.kDarkBorder : AppColors.stOutlineVariant),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedRarity,
                 isExpanded: true,
+                style: GoogleFonts.nunitoSans(
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? AppColors.kDarkText : AppColors.stOnSurfaceVariant,
+                ),
                 items: const [
                   DropdownMenuItem(value: 'Common', child: Text('Common (Makanan Biasa)')),
-                  DropdownMenuItem(value: 'Rare', child: Text('Rare')),
-                  DropdownMenuItem(value: 'Epic', child: Text('Epic')),
-                  DropdownMenuItem(value: 'Legendary', child: Text('Legendary')),
+                  DropdownMenuItem(value: 'Rare', child: Text('Rare (Nutrisi Tinggi)')),
+                  DropdownMenuItem(value: 'Epic', child: Text('Epic (Superfood)')),
+                  DropdownMenuItem(value: 'Legendary', child: Text('Legendary (Sempurna)')),
                 ],
                 onChanged: (v) => setState(() => _selectedRarity = v!),
               ),
             ),
           ),
+          const SizedBox(height: 24), // gap-lg sebelum Save Button
+
+          // Save Button — DI DALAM card ini, btn-gradient-primary dengan
+          // efek "3D button" (shadow bawah solid + translateY saat ditekan)
+          _buildSaveButton(),
         ],
       ),
     );
   }
 
-  Widget _buildMacroInput(String label, TextEditingController controller, bool isDark) {
+  Widget _buildMacroInput(String label, TextEditingController controller, bool isDark, Color valueColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _FieldLabel(label, isDark, small: true),
-        const SizedBox(height: 6),
-        _StyledTextField(controller: controller, hint: '0', isDark: isDark, isNumber: true),
+        // text-[11px] font-label-bold text-outline uppercase
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.nunitoSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
+          ),
+        ),
+        const SizedBox(height: 4), // gap-xs
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.kDarkSurface : AppColors.stSurface,
+            borderRadius: BorderRadius.circular(8), // rounded-lg
+            border: Border.all(color: isDark ? AppColors.kDarkBorder : AppColors.stOutlineVariant),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.montserrat( // font-stat-number, warna per-field
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
+              color: valueColor,
+            ),
+            decoration: const InputDecoration(
+              hintText: '0',
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8), // p-sm
+              border: InputBorder.none,
+            ),
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildSaveButton() {
+    return _SaveButton(onTap: _saveToLog);
+  }
+}
+
+// ── Save Button — efek "3D button" persis btn-gradient-primary ──────────────
+//
+// CSS asli:
+//   background: linear-gradient(180deg, #ffb800 0%, #fc8a40 100%);
+//   box-shadow: 0 4px 0 #9b4500, 0 8px 15px rgba(252,138,64,0.3);
+//   :active { box-shadow: 0 1px 0 #9b4500; transform: translateY(3px); }
+//
+// Efek "tombol fisik" ini SEBELUMNYA TIDAK ADA — implementasi lama cuma
+// gradient solid datar tanpa physical-button feedback.
+class _SaveButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _SaveButton({required this.onTap});
+
+  @override
+  State<_SaveButton> createState() => _SaveButtonState();
+}
+
+class _SaveButtonState extends State<_SaveButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _saveToLog,
-      child: Container(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        transform: Matrix4.translationValues(0, _pressed ? 3 : 0, 0),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 20), // py-5
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [AppColors.kPrimaryGold, AppColors.kPrimaryOrange]),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(color: AppColors.kPrimaryOrange.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4)),
-          ],
+          gradient: const LinearGradient(
+            colors: [AppColors.stPrimaryContainer, AppColors.stSecondaryContainer],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: BorderRadius.circular(12), // rounded-xl
+          boxShadow: _pressed
+              ? [const BoxShadow(color: Color(0xFF9B4500), offset: Offset(0, 1))]
+              : [
+                  const BoxShadow(color: Color(0xFF9B4500), offset: Offset(0, 4)),
+                  BoxShadow(color: const Color(0xFFFC8A40).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            const Icon(Icons.save_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Text('SIMPAN KE LOG', style: GoogleFonts.nunitoSans(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
-            const SizedBox(width: 6),
-            const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.save_rounded, color: Colors.white, size: 22),
+                const SizedBox(width: 16), // gap-md
+                Text(
+                  'SIMPAN KE LOG',
+                  style: GoogleFonts.montserrat( // font-headline-lg
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            Positioned(
+              right: 16,
+              child: Icon(Icons.arrow_forward_rounded, color: Colors.white.withOpacity(0.3), size: 20),
+            ),
           ],
         ),
       ),
@@ -606,18 +747,17 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
 class _FieldLabel extends StatelessWidget {
   final String text;
   final bool isDark;
-  final bool small;
-  const _FieldLabel(this.text, this.isDark, {this.small = false});
+  const _FieldLabel(this.text, this.isDark);
 
   @override
   Widget build(BuildContext context) {
+    // font-label-bold text-primary px-1
     return Text(
       text,
       style: GoogleFonts.nunitoSans(
-        fontSize: small ? 10 : 12,
+        fontSize: 14,
         fontWeight: FontWeight.w700,
-        color: isDark ? AppColors.kDarkTextSub : const Color(0xFF8A5A1E),
-        letterSpacing: 0.3,
+        color: isDark ? AppColors.kDarkText : AppColors.stPrimary,
       ),
     );
   }
@@ -674,8 +814,12 @@ class _RoundStepperBtn extends StatelessWidget {
       child: Container(
         width: 40,
         height: 40,
-        decoration: const BoxDecoration(color: AppColors.kPrimaryGold, shape: BoxShape.circle),
-        child: Icon(icon, color: Colors.white, size: 22),
+        // bg-primary-container, icon text-on-primary-container
+        decoration: const BoxDecoration(
+          color: AppColors.stPrimaryContainer,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: AppColors.stOnPrimaryContainer, size: 22),
       ),
     );
   }
@@ -684,12 +828,14 @@ class _RoundStepperBtn extends StatelessWidget {
 class _CircleIconBtn extends StatelessWidget {
   final IconData icon;
   final Color bg;
+  final Color iconColor;
   final VoidCallback onTap;
   final bool isLoading;
 
   const _CircleIconBtn({
     required this.icon,
     required this.bg,
+    this.iconColor = Colors.white,
     required this.onTap,
     this.isLoading = false,
   });
@@ -703,11 +849,11 @@ class _CircleIconBtn extends StatelessWidget {
         height: 38,
         decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
         child: isLoading
-            ? const Padding(
-                padding: EdgeInsets.all(10),
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ? Padding(
+                padding: const EdgeInsets.all(10),
+                child: CircularProgressIndicator(strokeWidth: 2, color: iconColor),
               )
-            : Icon(icon, color: Colors.white, size: 18),
+            : Icon(icon, color: iconColor, size: 18),
       ),
     );
   }

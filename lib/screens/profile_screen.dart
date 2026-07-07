@@ -113,265 +113,442 @@ class _ProfileScreenState extends State<ProfileScreen> {
   
   // ================= DASHBOARD UI =================
   Widget _buildDashboard() {
-    double bmi = 0;
-    if (_height > 0) {
-      bmi = _weight / ((_height / 100) * (_height / 100));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeProvider = context.watch<ThemeProvider>();
+
+    // Hitung BMI
+    final bmi = _height > 0 ? _weight / ((_height / 100) * (_height / 100)) : 0.0;
+    final bmiStr = bmi > 0 ? bmi.toStringAsFixed(1) : '--';
+    String bmiLabel = 'NORMAL';
+    Color bmiColor = AppColors.stTertiary;
+    Color bmiBg = AppColors.stTertiaryContainer.withOpacity(0.2);
+    if (bmi > 0) {
+      if (bmi < 18.5) { bmiLabel = 'KURUS'; bmiColor = AppColors.stPrimary; bmiBg = AppColors.stPrimaryContainer.withOpacity(0.2); }
+      else if (bmi >= 25) { bmiLabel = 'GEMUK'; bmiColor = AppColors.stError; bmiBg = AppColors.stErrorContainer.withOpacity(0.3); }
     }
-    String bmiStatus = 'Normal';
-    if (bmi < 18.5) bmiStatus = 'Underweight';
-    else if (bmi >= 25) bmiStatus = 'Overweight';
+
+    // Target kalori untuk display (pakai CalorieProvider jika tersedia)
+    final targetCal = context.watch<CalorieProvider>().targetCalories;
+    final goalEmoji = switch (_goal) {
+      'Bulking' => '💪', 'Cutting' => '✂️', _ => '⚖️',
+    };
+
+    // XP progress dalam rank saat ini
+    final gamification = GamificationService();
+    final rankProgress = gamification.getRankProgress(_xp);
+    final xpMin = rankProgress['min_xp']!;
+    final xpMax = rankProgress['max_xp']!;
+    final xpProgress = xpMax > xpMin ? (_xp - xpMin) / (xpMax - xpMin) : 0.0;
 
     return Scaffold(
-      backgroundColor: AppColors.kBgCream,
-      appBar: RPGAppBar(screenKey: 'profile'),
+      backgroundColor: isDark ? AppColors.kDarkBg : AppColors.stBackground,
+      appBar: const RPGAppBar(screenKey: 'profile'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 100), // px-container-margin mt-lg
         child: Column(
           children: [
-            // Header: Hero Stats
-            FantasyCard(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+            // ── 1. Profile Hero Card ─────────────────────────────────────────
+            // hero-gradient rounded-xl p-md, overflow hidden, card-inner-glow
+            Container(
+              padding: const EdgeInsets.all(AppColors.stSpaceMd),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.stPrimaryContainer, AppColors.stSecondaryContainer],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 10)),
+                ],
+              ),
+              child: Stack(
                 children: [
-                  FantasyRankBadge(
-                    rankName: _rank,
-                    level: GamificationService.getCurrentLevel(_xp),
-                    progress: 0.5, // Placeholder
-                    size: 100,
+                  // Edit button — absolute top right
+                  Positioned(
+                    top: 0, right: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.edit_rounded, color: Colors.white70, size: 20),
+                      onPressed: () => setState(() => _isEditing = true),
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _name.toUpperCase(), 
-                    style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: 1),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(color: AppColors.kHealthRed.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-                        child: Text('🔥 $_workoutStreak Hari Streak', style: GoogleFonts.nunito(color: AppColors.kHealthRed, fontWeight: FontWeight.w900, fontSize: 12)),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Avatar — w-20 h-20, rounded-full, border-4 primary-container
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 80, height: 80,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.fromBorderSide(BorderSide(color: AppColors.stPrimaryFixed, width: 4)),
+                                ),
+                                child: ClipOval(
+                                  child: Image.asset('assets/images/apex_avatar.png',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: AppColors.stPrimaryFixed.withOpacity(0.3),
+                                      child: const Icon(Icons.person_rounded, color: Colors.white, size: 40),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Rank badge — absolute -bottom-2 -right-2
+                              Positioned(
+                                bottom: -2, right: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.stSecondaryContainer,
+                                    borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                                    border: Border.all(color: AppColors.stOnSecondary.withOpacity(0.2)),
+                                  ),
+                                  child: Text('RANK ${GamificationService.getCurrentLevel(_xp)}',
+                                    style: GoogleFonts.nunitoSans(fontSize: 9, fontWeight: FontWeight.w800,
+                                      color: AppColors.stOnSecondary)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: AppColors.stSpaceLg),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Name — headline-lg-mobile 22px/800
+                                Text(_name, style: GoogleFonts.montserrat(
+                                  fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, height: 28/22)),
+                                const SizedBox(height: AppColors.stSpaceXs),
+                                // Badges inline
+                                Wrap(
+                                  spacing: 4, runSpacing: 4,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        border: Border.all(color: Colors.white.withOpacity(0.4)),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(_rank.toUpperCase() + ' WARRIOR',
+                                        style: GoogleFonts.nunitoSans(fontSize: 9, fontWeight: FontWeight.w800,
+                                          letterSpacing: 1, color: AppColors.stPrimaryFixed)),
+                                    ),
+                                    Row(mainAxisSize: MainAxisSize.min, children: [
+                                      const Text('🔥', style: TextStyle(fontSize: 12)),
+                                      const SizedBox(width: 2),
+                                      Text('$_workoutStreak Hari Streak',
+                                        style: GoogleFonts.nunitoSans(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                                    ]),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      // XP Bar
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppColors.stSpaceMd),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('XP Progress', style: GoogleFonts.nunitoSans(
+                                  fontSize: 10, fontWeight: FontWeight.w700,
+                                  color: Colors.white.withOpacity(0.8), letterSpacing: 1)),
+                                Text('${_xp.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '\${m[1]}.')}'
+                                  ' / ${xpMax.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '\${m[1]}.')}',
+                                  style: GoogleFonts.nunitoSans(fontSize: 10, fontWeight: FontWeight.w700,
+                                    color: Colors.white.withOpacity(0.8))),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              height: 8, // h-2
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                                child: FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: xpProgress.clamp(0.0, 1.0),
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(colors: [AppColors.stPrimaryFixed, AppColors.stPrimaryContainer]),
+                                    ),
+                                    child: Container(color: Colors.white.withOpacity(0.2)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
-            ).animate().fadeIn().scale(begin: const Offset(0.9, 0.9)),
-            const SizedBox(height: 24),
+            ),
+            const SizedBox(height: AppColors.stStackGap),
 
-            // Body Stats
-            _sectionTitle('STATISTIK TUBUH'),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _buildStatItem('$_weight kg', 'Berat'),
-                const SizedBox(width: 12),
-                _buildStatItem('$_height cm', 'Tinggi'),
-                const SizedBox(width: 12),
-                _buildStatItem(bmi.toStringAsFixed(1), bmiStatus),
-              ],
-            ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
-            const SizedBox(height: 24),
-
-            // Goal Mode
-            _sectionTitle('MODE TUJUAN'),
-            const SizedBox(height: 12),
-            FantasyCard(
-              padding: const EdgeInsets.all(20),
-              gradient: const LinearGradient(colors: [Color(0x1AFF8C42), Color(0x1AFFB800), Color(0x1AFFD93D)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-              child: Row(
+            // ── 2. Stat Tubuh ────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(AppColors.stSpaceMd),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer,
+                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.2)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0,2))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('💪', style: TextStyle(fontSize: 32)),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  _SectionHeader(icon: Icons.monitoring_rounded, label: 'STAT TUBUH', isDark: isDark),
+                  const SizedBox(height: AppColors.stSpaceMd),
+                  Row(
+                    children: [
+                      Expanded(child: _StatCell(label: 'BERAT', value: '${_weight.toInt()}', unit: 'kg', isDark: isDark)),
+                      const SizedBox(width: AppColors.stSpaceSm),
+                      Expanded(child: _StatCell(label: 'TINGGI', value: '${_height.toInt()}', unit: 'cm', isDark: isDark)),
+                      const SizedBox(width: AppColors.stSpaceSm),
+                      Expanded(child: _StatCell(label: 'BMI', value: bmiStr, unit: bmiLabel,
+                        valueColor: bmiColor, unitBg: bmiBg, unitColor: bmiColor, isDark: isDark)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppColors.stStackGap),
+
+            // ── 3. Mode Tujuan ───────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(AppColors.stSpaceMd),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer,
+                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SectionHeader(icon: Icons.my_location_rounded, label: 'MODE TUJUAN', isDark: isDark),
+                  const SizedBox(height: AppColors.stSpaceMd),
+                  Container(
+                    padding: const EdgeInsets.all(AppColors.stSpaceMd),
+                    decoration: BoxDecoration(
+                      color: AppColors.stPrimaryContainer.withOpacity(0.1),
+                      border: Border.all(color: AppColors.stPrimaryContainer.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          '${_goal.toUpperCase()} (Aktif)',
-                          style: GoogleFonts.poppins(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.kPrimaryOrange),
-                        ),
-                        Text(
-                          'Target: ${context.watch<CalorieProvider>().targetCalories} kcal / hari',
-                          style: GoogleFonts.inter(fontSize: 12, color: Colors.black54, fontWeight: FontWeight.w600),
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('$goalEmoji ${_goal.toUpperCase()}',
+                            style: GoogleFonts.montserrat(fontSize: 20, fontWeight: FontWeight.w700,
+                              color: isDark ? AppColors.stPrimaryFixed : AppColors.stPrimary)),
+                          Text('Target: ${targetCal.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '\${m[1]}.')} kcal/hari',
+                            style: GoogleFonts.inter(fontSize: 14,
+                              color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant)),
+                        ]),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.stPrimaryFixed : AppColors.stPrimary,
+                            borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+                          ),
+                          child: Text('AKTIF', style: GoogleFonts.nunitoSans(
+                            fontSize: 10, fontWeight: FontWeight.w800,
+                            color: isDark ? AppColors.stOnPrimaryFixed : AppColors.stOnPrimary)),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.kPrimaryOrange, size: 16),
                 ],
               ),
-            ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.1),
-            const SizedBox(height: 24),
+            ),
+            const SizedBox(height: AppColors.stStackGap),
 
-            // AI Recommendations (Fuzzy Logic)
-            _sectionTitle('REKOMENDASI AI (FUZZY LOGIC)'),
-            const SizedBox(height: 12),
-            FantasyCard(
-              padding: const EdgeInsets.all(20),
+            // ── 4. Rekomendasi AI ────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(AppColors.stSpaceMd),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainerHigh,
+                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                border: Border.all(color: AppColors.stPrimaryContainer.withOpacity(0.5), width: 2),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Text('🧮', style: TextStyle(fontSize: 24)),
-                      const SizedBox(width: 12),
-                      Text(
-                        '${context.watch<CalorieProvider>().targetCalories} kcal / hari',
-                        style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black87),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Row(children: [
+                      Icon(Icons.psychology_rounded, color: AppColors.stSecondary, size: 20),
+                      const SizedBox(width: AppColors.stSpaceSm),
+                      Text('REKOMENDASI AI', style: GoogleFonts.nunitoSans(
+                        fontSize: 14, fontWeight: FontWeight.w700,
+                        color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant,
+                        letterSpacing: 1)),
+                    ]),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.stOnTertiaryContainer,
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: AppColors.kNatureGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text('✅ SESUAI', style: GoogleFonts.nunito(color: AppColors.kNatureGreen, fontWeight: FontWeight.w900, fontSize: 10)),
+                      child: Text('Fuzzy Logic v4.2', style: GoogleFonts.inter(
+                        fontSize: 10, fontStyle: FontStyle.italic,
+                        color: AppColors.stTertiaryFixed)),
+                    ),
+                  ]),
+                  const SizedBox(height: AppColors.stSpaceMd),
+                  // Inner white card
+                  Container(
+                    padding: const EdgeInsets.all(AppColors.stSpaceMd),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurface,
+                      borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
+                      border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
+                    ),
+                    child: Column(children: [
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                        Text('${targetCal.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '\${m[1]}.')} kcal/hari',
+                          style: GoogleFonts.montserrat(fontSize: 20, fontWeight: FontWeight.w700,
+                            color: isDark ? AppColors.stPrimaryFixed : AppColors.stPrimary)),
+                        Row(children: [
+                          Icon(Icons.check_circle_rounded, color: AppColors.stSecondary, size: 16),
+                          const SizedBox(width: 4),
+                          Text('SESUAI', style: GoogleFonts.nunitoSans(
+                            fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.stSecondary)),
+                        ]),
+                      ]),
+                      const SizedBox(height: AppColors.stSpaceSm),
+                      // 4 tags — surface-container bg
+                      GridView.count(
+                        crossAxisCount: 2, shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisSpacing: 8, mainAxisSpacing: 8,
+                        childAspectRatio: 3.5,
+                        children: [
+                          _InfoTag(icon: Icons.monitor_heart_rounded, label: 'BMI: Normal', isDark: isDark),
+                          _InfoTag(icon: Icons.directions_run_rounded, label: 'Aktivitas: $_activityLevel', isDark: isDark),
+                          _InfoTag(icon: Icons.flag_rounded, label: 'Tujuan: $_goal', isDark: isDark),
+                          _InfoTag(icon: Icons.cake_rounded, label: 'Usia: $_age Tahun', isDark: isDark),
+                        ],
                       ),
-                    ],
+                    ]),
                   ),
-                  const Divider(height: 32),
-                  _buildFuzzyDetail('BMI', bmi.toStringAsFixed(1), bmiStatus),
-                  _buildFuzzyDetail('Aktivitas', _activityLevel, 'Normal'),
-                  _buildFuzzyDetail('Tujuan', _goal, 'Optimal'),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => const MainScreen(initialIndex: 5)),
-                        );
-                      },
-                      icon: const Icon(Icons.smart_toy_rounded, size: 18),
-                      label: const Text('KONSULTASI APEX'),
-                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.kPrimaryGold),
+                  const SizedBox(height: AppColors.stSpaceMd),
+                  // Konsultasi Apex button — hero-gradient
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const MainScreen(initialIndex: 3))),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: AppColors.stSpaceMd),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.stPrimaryContainer, AppColors.stSecondaryContainer],
+                          begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0,4))],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 22),
+                          const SizedBox(width: AppColors.stSpaceMd),
+                          Text('KONSULTASI APEX', style: GoogleFonts.montserrat(
+                            fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-            ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
-            const SizedBox(height: 24),
+            ),
+            const SizedBox(height: AppColors.stStackGap),
 
-            // Settings
-            _sectionTitle('PENGATURAN'),
-            const SizedBox(height: 12),
-            _buildSettingsList(),
-            const SizedBox(height: 100),
+            // ── 5. Pengaturan ────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(AppColors.stSpaceMd),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer,
+                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('PENGATURAN', style: GoogleFonts.nunitoSans(
+                    fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1,
+                    color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant)),
+                  const SizedBox(height: AppColors.stSpaceMd),
+
+                  // Notifikasi — Switch (dipertahankan)
+                  _SettingsSwitch(
+                    icon: Icons.notifications_rounded, label: 'Notifikasi',
+                    value: _notificationsEnabled, isDark: isDark,
+                    onChanged: (val) async {
+                      setState(() => _notificationsEnabled = val);
+                      await PrefsService.i.setNotificationsEnabled(val);
+                      if (val) await SmartNotificationService.refreshAndReschedule();
+                      else await SmartNotificationService.cancelAll();
+                    },
+                  ),
+
+                  // Dark Mode — Switch (dipertahankan)
+                  _SettingsSwitch(
+                    icon: Icons.dark_mode_rounded, label: 'Tema Gelap',
+                    value: themeProvider.isDark, isDark: isDark,
+                    onChanged: (val) => themeProvider.setDark(val),
+                  ),
+
+                  // Item chevron
+                  _SettingsChevron(icon: Icons.translate_rounded, label: 'Bahasa', trailing: 'Indonesia', isDark: isDark),
+                  _SettingsChevron(icon: Icons.download_rounded, label: 'Export Data', isDark: isDark,
+                    onTap: () => BackupService.exportDataAsJson(context)),
+                  _SettingsChevron(icon: Icons.info_rounded, label: 'Tentang', isDark: isDark),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppColors.stStackGap),
+
+            // ── Logout ───────────────────────────────────────────────────────
+            GestureDetector(
+              onTap: () async {
+                final prefs = PrefsService.i.raw;
+                await prefs.clear();
+                if (mounted) Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const MainScreen(initialIndex: 0)));
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppColors.stSpaceMd),
+                child: Center(child: Text('Keluar dari Petualangan',
+                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700,
+                    color: AppColors.stError))),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        title,
-        style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: 1),
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String value, String label) {
-    return Expanded(
-      child: FantasyCard(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: [
-            Text(value, style: GoogleFonts.montserrat(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black87)),
-            const SizedBox(height: 4),
-            Text(label, style: GoogleFonts.nunito(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black54)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFuzzyDetail(String label, String value, String status) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('• $label: $value', style: GoogleFonts.inter(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w500)),
-          Text('($status)', style: GoogleFonts.inter(fontSize: 12, color: Colors.black38, fontStyle: FontStyle.italic)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingsList() {
-    final themeProvider = context.watch<ThemeProvider>();
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: Theme.of(context).brightness == Brightness.dark
-            ? AppColors.kDarkSoftShadow
-            : AppColors.kSoftShadow,
-      ),
-      child: Column(
-        children: [
-          _buildSettingsTile(
-            Icons.notifications_active_rounded,
-            'Notifikasi',
-            'Reminder personal berbasis data',
-            AppColors.kPrimaryOrange,
-            _notificationsEnabled,
-            (val) async {
-              setState(() => _notificationsEnabled = val);
-              await PrefsService.i.setNotificationsEnabled(val);
-              if (val) {
-                await SmartNotificationService.refreshAndReschedule();
-              } else {
-                await SmartNotificationService.cancelAll();
-              }
-            },
-          ),
-          _divider(),
-          _buildSettingsTile(
-            Icons.dark_mode_rounded,
-            'Dark Mode',
-            'Tampilan gelap hemat baterai',
-            AppColors.kMysticPurple,
-            themeProvider.isDark,
-            (val) => themeProvider.setDark(val),
-          ),
-          _divider(),
-          _buildActionTile(Icons.backup_rounded, 'Cadangkan Data', 'Ekspor ke format JSON', Colors.green, () => BackupService.exportDataAsJson(context)),
-          _divider(),
-          _buildActionTile(Icons.logout_rounded, 'Keluar', 'Sesi akan diakhiri', Colors.red, () {}),
-        ],
-      ),
-    );
-  }
-
-  Widget _divider() => Divider(height: 1, indent: 64, color: Colors.grey[100]);
-
-  Widget _buildSettingsTile(IconData icon, String title, String subtitle, Color color, bool value, ValueChanged<bool> onChanged) {
-    return ListTile(
-      leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 20)),
-      title: Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14)),
-      subtitle: Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: Colors.black54)),
-      trailing: Switch(value: value, onChanged: onChanged, activeColor: color),
-    );
-  }
-
-  Widget _buildActionTile(IconData icon, String title, String subtitle, Color color, VoidCallback onTap) {
-    return ListTile(
-      leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 20)),
-      title: Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14, color: color == Colors.red ? Colors.red : Colors.black87)),
-      subtitle: Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: Colors.black54)),
-      trailing: const Icon(Icons.chevron_right_rounded, size: 20),
-      onTap: onTap,
-    );
-  }
-
-  // ================= FORM UI =================
   Widget _buildForm() {
     return Scaffold(
-      backgroundColor: AppColors.kBgCream,
+      backgroundColor: AppColors.stBackground,
       appBar: AppBar(
         title: Text(_hasProfile ? 'EDIT PROFILE' : 'CREATE PROFILE', style: GoogleFonts.poppins(fontWeight: FontWeight.w900, letterSpacing: 1.5)),
         backgroundColor: Colors.transparent,
@@ -488,10 +665,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       labelStyle: GoogleFonts.nunito(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold),
       prefixIcon: Icon(icon, color: AppColors.kPrimaryOrange, size: 20),
       filled: true,
-      fillColor: AppColors.kBgCream,
+      fillColor: AppColors.stInputBg,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppColors.kPrimaryOrange, width: 1.5)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppColors.stRadiusLg), borderSide: const BorderSide(color: AppColors.stPrimary, width: 1.5)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
@@ -525,5 +702,175 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     }
+  }
+}
+// ── Helper widgets ────────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDark;
+  const _SectionHeader({required this.icon, required this.label, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.stPrimary, size: 20),
+        const SizedBox(width: AppColors.stSpaceSm),
+        Text(label, style: GoogleFonts.nunitoSans(
+          fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1,
+          color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant)),
+      ],
+    );
+  }
+}
+
+class _StatCell extends StatelessWidget {
+  final String label, value, unit;
+  final Color? valueColor, unitBg, unitColor;
+  final bool isDark;
+
+  const _StatCell({
+    required this.label, required this.value, required this.unit,
+    required this.isDark, this.valueColor, this.unitBg, this.unitColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppColors.stSpaceSm),
+      decoration: BoxDecoration(
+        // bg-background = surface-container-lowest (putih)
+        color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
+        border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
+      ),
+      child: Column(children: [
+        Text(label, style: GoogleFonts.nunitoSans(
+          fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5,
+          color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline)),
+        const SizedBox(height: 2),
+        Text(value, style: GoogleFonts.montserrat(
+          fontSize: 22, fontWeight: FontWeight.w900,
+          color: valueColor ?? (isDark ? AppColors.kDarkText : AppColors.stOnSurface))),
+        const SizedBox(height: 2),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          decoration: BoxDecoration(
+            color: unitBg ?? Colors.transparent,
+            borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+          ),
+          child: Text(unit, style: GoogleFonts.nunitoSans(
+            fontSize: 10, fontWeight: FontWeight.w700,
+            color: unitColor ?? (isDark ? AppColors.kDarkTextSub : AppColors.stOutline))),
+        ),
+      ]),
+    );
+  }
+}
+
+class _InfoTag extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDark;
+  const _InfoTag({required this.icon, required this.label, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainer,
+        borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
+      ),
+      child: Row(children: [
+        Icon(icon, size: 14, color: AppColors.stOutline),
+        const SizedBox(width: 4),
+        Expanded(child: Text(label, style: GoogleFonts.inter(
+          fontSize: 11, fontWeight: FontWeight.w500,
+          color: isDark ? AppColors.kDarkText : AppColors.stOnSurface),
+          maxLines: 1, overflow: TextOverflow.ellipsis)),
+      ]),
+    );
+  }
+}
+
+class _SettingsSwitch extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool value, isDark;
+  final ValueChanged<bool> onChanged;
+
+  const _SettingsSwitch({
+    required this.icon, required this.label,
+    required this.value, required this.isDark, required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppColors.stSpaceSm),
+      child: Row(children: [
+        // icon circle — primary-container/20
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.stPrimaryContainer.withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 18, color: AppColors.stPrimary),
+        ),
+        const SizedBox(width: AppColors.stSpaceMd),
+        Expanded(child: Text(label, style: GoogleFonts.inter(
+          fontSize: 14, fontWeight: FontWeight.w500,
+          color: isDark ? AppColors.kDarkText : AppColors.stOnSurface))),
+        Switch(value: value, onChanged: onChanged),
+      ]),
+    );
+  }
+}
+
+class _SettingsChevron extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? trailing;
+  final bool isDark;
+  final VoidCallback? onTap;
+
+  const _SettingsChevron({
+    required this.icon, required this.label, required this.isDark,
+    this.trailing, this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: AppColors.stSpaceSm),
+        child: Row(children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.stPrimaryContainer.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 18, color: AppColors.stPrimary),
+          ),
+          const SizedBox(width: AppColors.stSpaceMd),
+          Expanded(child: Text(label, style: GoogleFonts.inter(
+            fontSize: 14, fontWeight: FontWeight.w500,
+            color: isDark ? AppColors.kDarkText : AppColors.stOnSurface))),
+          if (trailing != null) ...[
+            Text(trailing!, style: GoogleFonts.inter(
+              fontSize: 12, color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline)),
+            const SizedBox(width: 4),
+          ],
+          Icon(Icons.chevron_right_rounded,
+            color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline, size: 20),
+        ]),
+      ),
+    );
   }
 }

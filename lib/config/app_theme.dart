@@ -62,26 +62,26 @@ class AppTheme {
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
+          // DESIGN.md: "Modal Cream (#FFF3E0) background with 1px amber border"
           filled: true,
-          fillColor: Colors.white,
+          fillColor: AppColors.stInputBg,
           contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md, vertical: AppSpacing.sm + 4),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            borderSide: BorderSide(color: Colors.grey[200]!),
+            borderRadius: BorderRadius.circular(AppColors.stRadiusLg),
+            borderSide: const BorderSide(color: AppColors.stInputBorder, width: 1),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            borderSide: BorderSide(color: Colors.grey[200]!),
+            borderRadius: BorderRadius.circular(AppColors.stRadiusLg),
+            borderSide: const BorderSide(color: AppColors.stInputBorder, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            borderSide:
-                const BorderSide(color: AppColors.kPrimaryOrange, width: 1.5),
+            borderRadius: BorderRadius.circular(AppColors.stRadiusLg),
+            borderSide: const BorderSide(color: AppColors.stPrimary, width: 1.5),
           ),
-          labelStyle: GoogleFonts.nunito(
-              color: Colors.black54, fontWeight: FontWeight.w600),
-          hintStyle: GoogleFonts.nunito(color: Colors.black38),
+          labelStyle: GoogleFonts.nunitoSans(
+              color: AppColors.stPrimary, fontWeight: FontWeight.w700),
+          hintStyle: GoogleFonts.nunitoSans(color: AppColors.stOutline),
         ),
         snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
