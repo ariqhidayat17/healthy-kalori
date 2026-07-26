@@ -288,14 +288,14 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
     // Spek HTML: input pl-12 pr-32 py-4, bg-surface-container,
     // border-2 outline-variant, rounded-full, shadow-sm.
     // 3 tombol kanan: qr_code_scanner (bg primary), mic (bg surface-container-highest),
-    // psychology (bg tertiary-container) — BUKAN auto_awesome.
+    // psychology (bg tertiary-container).
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer,
+        color: isDark ? AppColors.stSurfaceContainer : AppColors.stSurfaceContainer,
         borderRadius: BorderRadius.circular(100),
         border: Border.all(
-          color: isDark ? AppColors.kDarkBorder : AppColors.stOutlineVariant,
-          width: 2, // border-2
+          color: AppColors.stOutlineVariant,
+          width: 2,
         ),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1)),
@@ -584,30 +584,31 @@ class _AddFoodScreenState extends State<AddFoodScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Rarity Selector — 4 opsi dengan deskripsi lengkap sesuai HTML
-          _FieldLabel('Tingkat Kelangkaan (Rarity)', isDark),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.kDarkSurface : AppColors.stSurface,
-              borderRadius: BorderRadius.circular(8), // rounded-lg
-              border: Border.all(color: isDark ? AppColors.kDarkBorder : AppColors.stOutlineVariant),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedRarity,
-                isExpanded: true,
-                style: GoogleFonts.nunitoSans(
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? AppColors.kDarkText : AppColors.stOnSurfaceVariant,
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'Common', child: Text('Common (Makanan Biasa)')),
-                  DropdownMenuItem(value: 'Rare', child: Text('Rare (Nutrisi Tinggi)')),
-                  DropdownMenuItem(value: 'Epic', child: Text('Epic (Superfood)')),
-                  DropdownMenuItem(value: 'Legendary', child: Text('Legendary (Sempurna)')),
-                ],
+    // Rarity Selector
+    _FieldLabel('Tingkat Kelangkaan (Rarity)', isDark),
+    const SizedBox(height: 8),
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.stSurfaceContainerHigh : AppColors.stSurfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.stOutlineVariant),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedRarity,
+          isExpanded: true,
+          dropdownColor: isDark ? AppColors.stSurfaceContainerHigh : AppColors.stSurfaceContainerHigh,
+          style: GoogleFonts.nunitoSans(
+            fontWeight: FontWeight.w700,
+            color: isDark ? AppColors.stOnSurface : AppColors.stOnSurface,
+          ),
+          items: const [
+            DropdownMenuItem(value: 'Common', child: Text('Common (Makanan Biasa)')),
+            DropdownMenuItem(value: 'Rare', child: Text('Rare (Nutrisi Tinggi)')),
+            DropdownMenuItem(value: 'Epic', child: Text('Epic (Superfood)')),
+            DropdownMenuItem(value: 'Legendary', child: Text('Legendary (Sempurna)')),
+          ],
                 onChanged: (v) => setState(() => _selectedRarity = v!),
               ),
             ),

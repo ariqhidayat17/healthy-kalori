@@ -8,6 +8,7 @@ import '../models/user_profile.dart';
 import '../models/calorie_provider.dart';
 import '../config/app_colors.dart';
 import '../widgets/rpg_app_bar.dart';
+import '../config/app_theme.dart';
 
 // Import Widgets Baru
 import '../widgets/fantasy_card.dart';
@@ -186,10 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
         await showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (_) => StreakDialog(
-            result: result,
-            onClose: () => Navigator.pop(context),
-          ),
+          builder: (_) => const Center(child: Text("Streak Milestones")), // Placeholder for missing StreakDialog widget
         );
       }
     }
@@ -524,21 +522,17 @@ class _HomeScreenState extends State<HomeScreen> {
       tip = 'Luar biasa! Asupan harianmu terjaga dengan baik. Pertahankan! ✨';
     }
 
-    // Warna presisi dari code.html: bg-blue-50, border-blue-200,
-    // bg-blue-500 (icon circle), text-blue-800, text-blue-400 (chevron)
     return GestureDetector(
       onTap: () => Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const MainScreen(initialIndex: 3)),
       ),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // p-sm
+        padding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFEFF6FF), // blue-50
-          borderRadius: BorderRadius.circular(8), // rounded-lg
-          border: Border.all(color: const Color(0xFFBFDBFE), width: 1), // blue-200
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1)),
-          ],
+          color: AppColors.stSurfaceContainer,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.stOutlineVariant, width: 1),
         ),
         child: Row(
           children: [
@@ -546,24 +540,20 @@ class _HomeScreenState extends State<HomeScreen> {
               width: 32,
               height: 32,
               decoration: const BoxDecoration(
-                color: Color(0xFF3B82F6), // blue-500
+                color: AppColors.stPrimaryContainer,
                 shape: BoxShape.circle,
               ),
               child: const Center(child: Text('🧠', style: TextStyle(fontSize: 16))),
             ),
-            const SizedBox(width: 8), // gap-sm
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 tip,
-                style: GoogleFonts.nunitoSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700, // label-bold
-                  color: const Color(0xFF1E40AF), // blue-800
-                  height: 1.3,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.stPrimary),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF60A5FA), size: 22), // blue-400
+            Icon(Icons.chevron_right_rounded,
+                color: AppColors.stOutline, size: 22),
           ],
         ),
       ),
@@ -577,21 +567,19 @@ class _HomeScreenState extends State<HomeScreen> {
     return Center(
       child: Column(
         children: [
-          // Ring 200x200 — ukuran presisi sesuai SVG viewBox di code.html
           FantasyCalorieRing(
             current: calorieProvider.totalConsumedCalories.toDouble(),
             target: calorieProvider.targetCalories.toDouble(),
             size: 200,
           ),
-          const SizedBox(height: 16), // mt-4
-          // Status pill — bg surface-container-low, border outline-variant/30
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), // px-4 py-1.5
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
               color: isOverload
                   ? AppColors.stErrorContainer.withOpacity(0.3)
-                  : AppColors.kBgModal, // surface-container-low (#fff2e1)
-              borderRadius: BorderRadius.circular(100), // rounded-full
+                  : AppColors.kBgModal,
+              borderRadius: BorderRadius.circular(100),
               border: Border.all(
                 color: AppColors.stOutlineVariant.withOpacity(0.3),
                 width: 1,
@@ -599,7 +587,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: Text(
               isOverload ? 'Overload! ⚠️' : 'Masih aman! 😊',
-              style: GoogleFonts.inter( // text-sm di HTML pakai font default = Inter/body
+              style: GoogleFonts.inter(
                 fontWeight: FontWeight.w400,
                 fontSize: 14,
                 color: isOverload ? AppColors.stError : AppColors.stOnSurface,
@@ -619,32 +607,28 @@ class _HomeScreenState extends State<HomeScreen> {
     final fat   = calorieProvider.totalConsumedFats;
     final tFat  = calorieProvider.targetFats > 0 ? calorieProvider.targetFats : 65;
 
-    // Warna persis dari code.html:
-    // Protein → text-primary (#7c5800), bar bg-secondary (#9b4500)
-    // Carbs   → text-[#2196f3], bar bg-[#2196f3]
-    // Fat     → text-[#4caf50], bar bg-[#4caf50]
     return Column(
       children: [
-        _MacroCard(
-          emoji: '🥩', label: 'Protein',
-          current: prot, target: tProt,
-          color: AppColors.stPrimary,
-          barColor: AppColors.stSecondary,
-        ),
-        const SizedBox(height: 8), // gap-sm
-        _MacroCard(
-          emoji: '🍞', label: 'Karbohidrat',
-          current: carb, target: tCarb,
-          color: const Color(0xFF2196F3),
-          barColor: const Color(0xFF2196F3),
-        ),
-        const SizedBox(height: 8),
-        _MacroCard(
-          emoji: '🥑', label: 'Lemak',
-          current: fat, target: tFat,
-          color: const Color(0xFF4CAF50),
-          barColor: const Color(0xFF4CAF50),
-        ),
+          _MacroCard(
+            emoji: '🥩', label: 'Protein',
+            current: prot, target: tProt,
+            color: AppColors.stPrimary,
+            barColor: AppColors.stSecondary,
+          ),
+          const SizedBox(height: 8),
+          _MacroCard(
+            emoji: '🍞', label: 'Karbohidrat',
+            current: carb, target: tCarb,
+            color: const Color(0xFF2196F3),
+            barColor: const Color(0xFF2196F3),
+          ),
+          const SizedBox(height: 8),
+          _MacroCard(
+            emoji: '🥑', label: 'Lemak',
+            current: fat, target: tFat,
+            color: const Color(0xFF4CAF50),
+            barColor: const Color(0xFF4CAF50),
+          ),
       ],
     );
   }
@@ -673,48 +657,32 @@ class _HomeScreenState extends State<HomeScreen> {
         _proteinClaimed && _calorieClaimed && _waterClaimed;
     final int missionsLeft = 3 - completedMissions;
 
-    // Section ini = "Mission Card" di code.html: SATU card besar
-    // (surface-container-high, rounded-2xl) membungkus header + 3 item misi
-    // + Daily Reward card di dalamnya. Sebelumnya item-item ini lepas
-    // di luar card — itu salah, sudah diperbaiki di sini.
     return Container(
-      padding: const EdgeInsets.all(16), // p-md
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.stSurfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16), // rounded-2xl
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.stOutline.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6, offset: const Offset(0, 2)),
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4, offset: const Offset(0, 1)),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: "MISI HARIAN (2/3 ✅)" + ikon refresh
           Padding(
-            padding: const EdgeInsets.only(bottom: 16), // mb-md
+            padding: const EdgeInsets.only(bottom: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'MISI HARIAN ($completedMissions/3 ${completedMissions == 3 ? "✅" : ""})',
-                  style: GoogleFonts.montserrat( // font-headline-md
-                    fontSize: 18, // text-lg
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.stPrimaryContainer,
-                    shadows: const [Shadow(color: Colors.black26, blurRadius: 1)], // drop-shadow-sm
-                  ),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.stPrimary),
                 ),
                 Icon(Icons.refresh_rounded, color: AppColors.stOutline, size: 22),
               ],
             ),
           ),
-
-          // 3 item misi — space-y-sm
           _MissionItem(
             emoji: '🥩',
-            bgColor: const Color(0xFFFFEDD5), // orange-100
+            bgColor: const Color(0xFFF3E5F5),
             title: 'Daging Perkasa',
             subtitle: 'Konsumsi ${targetProtein.toInt()}g Protein',
             xpLabel: '+50 XP',
@@ -727,12 +695,12 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           _MissionItem(
             emoji: '🔥',
-            bgColor: const Color(0xFFFEE2E2), // red-100
+            bgColor: AppColors.stErrorContainer,
             title: 'Latihan Membara',
             subtitle: 'Kalori \u2264 $targetCalories kcal',
             xpLabel: '+40 XP',
             isChecked: _calorieClaimed,
-            isDimmed: true, // HTML: opacity-75 untuk item 2 & 3
+            isDimmed: true,
             onTap: calCompleted && !_calorieClaimed
                 ? () => _claimMission('calorie', 40, 'Latihan Membara')
                 : null,
@@ -740,7 +708,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
           _MissionItem(
             emoji: '💧',
-            bgColor: const Color(0xFFDBEAFE), // blue-100
+            bgColor: const Color(0xFFDBEAFE),
             title: 'Air Kehidupan',
             subtitle: 'Minum $_targetWater Gelas Air',
             xpLabel: '+20 XP',
@@ -751,16 +719,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 : null,
           ),
 
-          // Daily Reward Card — di DALAM card yang sama (mt-lg)
           Padding(
             padding: const EdgeInsets.only(top: 24),
             child: Container(
-              padding: const EdgeInsets.all(16), // p-md
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppColors.stPrimaryContainer, AppColors.stPrimaryFixed],
                 ),
-                borderRadius: BorderRadius.circular(12), // rounded-xl
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -769,16 +736,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Text(
                         _chestClaimed ? '✅' : '🎁',
-                        style: const TextStyle(fontSize: 30), // text-3xl
+                        style: const TextStyle(fontSize: 30),
                       ).animate(onPlay: (c) => c.repeat(reverse: true))
                           .moveY(begin: 0, end: -4, duration: 800.ms),
-                      const SizedBox(width: 16), // gap-md
+                      const SizedBox(width: 16),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Kotak Harta Harian',
-                            style: GoogleFonts.montserrat( // font-headline-md
+                            style: GoogleFonts.montserrat(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: AppColors.stOnPrimaryContainer,
@@ -802,10 +769,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   GestureDetector(
                     onTap: canClaimChest ? () => _claimDailyChest(completedMissions) : null,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // px-4 py-2
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: AppColors.stPrimary,
-                        borderRadius: BorderRadius.circular(100), // rounded-full
+                        borderRadius: BorderRadius.circular(100),
                       ),
                       child: Opacity(
                         opacity: canClaimChest ? 1.0 : 0.5,
@@ -854,16 +821,14 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            // h3.font-headline-md text-base mb-md — judul saja, tanpa icon
-            // di sisi kanan (HTML tidak punya icon bar_chart di header ini)
             'Statistik Mingguan',
             style: GoogleFonts.montserrat(
-              fontSize: 16, // text-base
-              fontWeight: FontWeight.w700, // headline-md
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
               color: AppColors.stOnSurface,
             ),
           ),
-          const SizedBox(height: 16), // mb-md
+          const SizedBox(height: 16),
           SizedBox(
             height: 150,
             child: Row(
@@ -882,7 +847,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Stack(
                         alignment: Alignment.bottomCenter,
                         children: [
-                          // Track: bg-surface-container-high, rounded-t-md (6px)
                           Container(
                             width: 16,
                             decoration: BoxDecoration(
@@ -890,8 +854,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                             ),
                           ),
-                          // Fill: bg-primary-container (solid #ffb800), hover→primary di web
-                          // (hover diabaikan di mobile, today disorot via warna primary solid)
                           FractionallySizedBox(
                             heightFactor: heightFactor,
                             child: Container(
@@ -908,7 +870,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     Text(
                       day,
-                      style: GoogleFonts.nunitoSans( // font-label-bold text-outline
+                      style: GoogleFonts.nunitoSans(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         color: isToday ? AppColors.stPrimary : AppColors.stOutline,
@@ -923,7 +885,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Center(
             child: Text(
               'Rata-rata: ${(_weeklyCalories.reduce((a, b) => a + b) / 7).toInt()} kcal / hari',
-              style: GoogleFonts.inter( // body text, bukan label
+              style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: AppColors.stOutline,
@@ -941,7 +903,7 @@ class _HomeScreenState extends State<HomeScreen> {
     String name = _userProfile?.name ?? 'Hero';
 
     return Scaffold(
-      backgroundColor: AppColors.stBackground, // #fff8f3, sama dengan kBgCream tapi konsisten ke token Stitch
+      backgroundColor: AppColors.stBackground,
       appBar: RPGAppBar(
         screenKey: 'home',
         showSubtitle: false,
@@ -955,21 +917,18 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          // px-container-margin (20px), pt-md (16px) sesuai code.html <main>
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. Hero Stats Card
               HeroStatsCard(name: name, currentLevel: _currentLevel, streakDays: _streakDays, currentXP: _currentXP, maxXP: _maxXP, rank: _currentRank).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1),
-              const SizedBox(height: 12), // gap-stack-gap (12px) antar section utama
+              const SizedBox(height: 12),
 
               if (_showGuideCard) ...[
                 _buildAdventurerGuideCard(Theme.of(context).brightness == Brightness.dark),
                 const SizedBox(height: 12),
               ],
 
-              // 1b. Streak Banner (tambahan di luar spek Stitch, dipertahankan)
               StreakBannerWidget(
                 streak: _streakDays,
                 longestStreak: _longestStreak,
@@ -977,37 +936,28 @@ class _HomeScreenState extends State<HomeScreen> {
               ).animate().fadeIn(delay: 100.ms),
               const SizedBox(height: 12),
 
-              // 2. AI Coach Chip
               _buildAICoachChip(calorieProvider).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2),
               const SizedBox(height: 12),
 
-              // 3. Calorie Ring Section
               _buildCalorieRingSection(calorieProvider).animate().fadeIn(delay: 300.ms).scale(begin: const Offset(0.95, 0.95)),
               const SizedBox(height: 12),
 
-              // 4. Macro Bars Grid
               _buildMacroBarsSection(calorieProvider).animate().fadeIn(delay: 400.ms),
               const SizedBox(height: 12),
 
-              // 5. Mission Card (header + 3 item + reward, satu card)
               _buildQuestBoardSection(calorieProvider).animate().fadeIn(delay: 500.ms).slideX(begin: 0.1),
               const SizedBox(height: 12),
 
-              // 6. Weekly Stats Card
               _buildWeeklyStatsCard(calorieProvider.targetCalories.toDouble()).animate().fadeIn(delay: 600.ms),
               const SizedBox(height: 12),
 
-              // 7. Weekly AI Insight (tambahan di luar spek Stitch, dipertahankan)
               const WeeklyInsightCard().animate().fadeIn(delay: 650.ms),
-              const SizedBox(height: 24), // lg (24px) sebelum section baru "Log Petualangan"
+              const SizedBox(height: 24),
 
-              // ── Tracker tambahan (Weight/Water/Workout) — di luar spek Stitch,
-              // dipertahankan sesuai kesepakatan, styling header disamakan ke
-              // sistem font Stitch (Montserrat headline, bukan Poppins)
               Text(
                 'Log Petualangan',
                 style: GoogleFonts.montserrat(
-                  fontSize: 20, // headline-md
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: AppColors.stOnSurface,
                 ),
@@ -1025,7 +975,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 lastWorkoutDate: _lastWorkoutDate,
                 onLogAdded: _loadWorkoutStats,
               ).animate().fadeIn(delay: 900.ms),
-              const SizedBox(height: 100), // Spasi untuk bottom nav
+              const SizedBox(height: 100),
             ],
           ),
         ),
@@ -1055,7 +1005,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Text('🧙‍♂️', style: TextStyle(fontSize: 20)),
                   const SizedBox(width: 8),
                   Text(
-                    'PANDUAN PETUALANGAN',
+                    'YOUR AI COACH',
                     style: GoogleFonts.montserrat(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
@@ -1130,9 +1080,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-
-// ── MacroCard — sesuai desain Stitch (card terpisah per makro + persentase) ──
-
 class _MacroCard extends StatelessWidget {
   final String emoji;
   final String label;
@@ -1158,16 +1105,15 @@ class _MacroCard extends StatelessWidget {
     final bool isOver = pct > 1.0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), // p-md
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainerLowest,
-        borderRadius: BorderRadius.circular(12), // rounded-xl
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDark ? AppColors.kDarkBorder : AppColors.stOutlineVariant.withOpacity(0.2),
           width: 1,
         ),
         boxShadow: isDark ? AppColors.kDarkSoftShadow : [
-          // .fantasy-card shadow dari code.html
           BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6, offset: const Offset(0, 2)),
           BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4, offset: const Offset(0, 1)),
         ],
@@ -1179,11 +1125,11 @@ class _MacroCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(emoji, style: const TextStyle(fontSize: 20)), // text-xl
-                  const SizedBox(width: 4), // gap-xs
+                  Text(emoji, style: const TextStyle(fontSize: 20)),
+                  const SizedBox(width: 4),
                   Text(
                     label,
-                    style: GoogleFonts.nunitoSans( // font-label-bold
+                    style: GoogleFonts.nunitoSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: isDark ? AppColors.kDarkText : AppColors.stOnSurfaceVariant,
@@ -1193,7 +1139,7 @@ class _MacroCard extends StatelessWidget {
               ),
               Text(
                 '$pctInt%',
-                style: GoogleFonts.nunitoSans( // font-label-bold (BUKAN Montserrat)
+                style: GoogleFonts.nunitoSans(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: isOver ? AppColors.stError : color,
@@ -1201,8 +1147,7 @@ class _MacroCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4), // gap-xs
-          // Progress bar — h-2 (8px), bg surface-container-high, progress-gloss
+          const SizedBox(height: 4),
           Stack(
             children: [
               Container(
@@ -1234,7 +1179,7 @@ class _MacroCard extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: Text(
               '${current}g / ${target}g',
-              style: GoogleFonts.inter( // text-[10px] text-outline (body text, bukan stat)
+              style: GoogleFonts.inter(
                 fontSize: 10,
                 fontWeight: FontWeight.w400,
                 color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
@@ -1247,11 +1192,6 @@ class _MacroCard extends StatelessWidget {
   }
 }
 
-// ── Mission Item — item misi individual di dalam Mission Card ──────────────
-//
-// Diterjemahkan dari "Mission Item 1/2/3" di code.html:
-// bg-surface-container-lowest, rounded-xl, border outline-variant/20,
-// icon 40x40 kotak warna pastel, judul+subtitle, badge XP + checkbox.
 class _MissionItem extends StatelessWidget {
   final String emoji;
   final Color bgColor;
@@ -1278,18 +1218,16 @@ class _MissionItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Opacity(
-        // opacity-75 untuk item ke-2 & ke-3 sesuai HTML
         opacity: isDimmed && !isChecked ? 0.75 : 1.0,
         child: Container(
-          padding: const EdgeInsets.all(8), // p-sm
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: AppColors.stSurfaceContainerLowest,
-            borderRadius: BorderRadius.circular(12), // rounded-xl
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.2)),
           ),
           child: Row(
             children: [
-              // Icon box 40x40 (w-10 h-10), rounded-lg
               Container(
                 width: 40,
                 height: 40,
@@ -1299,14 +1237,14 @@ class _MissionItem extends StatelessWidget {
                 ),
                 child: Center(child: Text(emoji, style: const TextStyle(fontSize: 20))),
               ),
-              const SizedBox(width: 16), // gap-md
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: GoogleFonts.nunitoSans( // font-label-bold
+                      style: GoogleFonts.nunitoSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppColors.stOnSurface,
@@ -1314,7 +1252,7 @@ class _MissionItem extends StatelessWidget {
                     ),
                     Text(
                       subtitle,
-                      style: GoogleFonts.inter( // text-[10px] text-outline, body text
+                      style: GoogleFonts.inter(
                         fontSize: 10,
                         color: AppColors.stOutline,
                       ),
@@ -1328,7 +1266,7 @@ class _MissionItem extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.stSecondaryFixed, // bg-secondary-fixed
+                      color: AppColors.stSecondaryFixed,
                       borderRadius: BorderRadius.circular(100),
                     ),
                     child: Text(
@@ -1336,12 +1274,11 @@ class _MissionItem extends StatelessWidget {
                       style: GoogleFonts.nunitoSans(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.stSecondary, // text-secondary
+                        color: AppColors.stSecondary,
                       ),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // Checkbox 20x20 (w-5 h-5)
                   Container(
                     width: 20,
                     height: 20,

@@ -88,26 +88,25 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
     });
   }
 
- Widget _buildXPStreakBar() {
+  Widget _buildXPStreakBar() {
     final xpProgress = _maxXP > 0
         ? ((_currentXP - _getMinXPForRank()) / (_maxXP - _getMinXPForRank())).clamp(0.0, 1.0)
         : 0.0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: AppColors.stSpaceMd, vertical: AppColors.stSpaceSm),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.1))),
+        color: AppColors.stSurfaceContainerLowest,
+        border: Border(bottom: BorderSide(color: AppColors.stOutlineVariant.withOpacity(0.2))),
       ),
       child: Row(
         children: [
-          // Streak
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.kPrimaryOrange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.kPrimaryOrange.withValues(alpha: 0.2)),
+              color: AppColors.stSecondaryContainer.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
+              border: Border.all(color: AppColors.stSecondaryContainer.withOpacity(0.5)),
             ),
             child: Row(
               children: [
@@ -115,17 +114,16 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
                 const SizedBox(width: 4),
                 Text(
                   '$_streakDays hari',
-                  style: GoogleFonts.nunito(
+                  style: GoogleFonts.nunitoSans(
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
-                    color: AppColors.kPrimaryOrange,
+                    color: AppColors.stSecondary,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 10),
-          // XP Bar
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,30 +133,30 @@ class _CalorieTrackerScreenState extends State<CalorieTrackerScreen> {
                   children: [
                     Text(
                       '⚡ $_currentRank · Lvl $_currentLevel',
-                      style: GoogleFonts.nunito(
+                      style: GoogleFonts.nunitoSans(
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
-                        color: Colors.black54,
+                        color: AppColors.stOnSurfaceVariant,
                       ),
                     ),
                     Text(
                       '$_currentXP / $_maxXP XP',
-                      style: GoogleFonts.nunito(
+                      style: GoogleFonts.nunitoSans(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black38,
+                        color: AppColors.stOutline,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
                   child: LinearProgressIndicator(
                     value: xpProgress,
                     minHeight: 6,
-                    backgroundColor: Colors.grey.withValues(alpha: 0.15),
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.kPrimaryGold),
+                    backgroundColor: AppColors.stOutlineVariant.withOpacity(0.2),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.stPrimaryContainer),
                   ),
                 ),
               ],
