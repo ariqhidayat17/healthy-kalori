@@ -69,7 +69,9 @@ class HeroStatsCard extends StatelessWidget {
                   height: 64,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12), // rounded-xl
-                    border: Border.all(color: AppColors.stPrimaryFixed, width: 4),
+                    border: ['Bronze', 'Silver', 'Gold', 'Diamond', 'Spartan'].contains(rank)
+                        ? null
+                        : Border.all(color: AppColors.stPrimaryFixed, width: 4),
                     boxShadow: [
                       BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 4, offset: const Offset(0, 2)),
                     ],
@@ -77,6 +79,11 @@ class HeroStatsCard extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8), // sedikit lebih kecil dari border luar
                     child: Image.asset(
+                      rank == 'Bronze' ? 'assets/images/bronze.png' :
+                      rank == 'Silver' ? 'assets/images/silver.png' :
+                      rank == 'Gold' ? 'assets/images/gold.png' :
+                      rank == 'Diamond' ? 'assets/images/diamond.png' :
+                      rank == 'Spartan' ? 'assets/images/spartan.png' :
                       'assets/images/apex_avatar.png',
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(

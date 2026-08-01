@@ -3,19 +3,19 @@
 class RPGTitleHelper {
   RPGTitleHelper._();
 
-  /// Judul RPG berdasarkan rank (sesuai desain Stitch)
+  /// Judul RPG berdasarkan rank (sesuai desain baru)
   static String title(String rank) => switch (rank) {
-        'Bronze'  => 'Penjelajah',
-        'Silver'  => 'Ksatria',
-        'Gold'    => 'Paladin',
-        'Diamond' => 'Guardian',
-        'Spartan' => 'Spartan',
+        'Bronze'  => 'Rookie',
+        'Silver'  => 'Apprentice',
+        'Gold'    => 'Warrior',
+        'Diamond' => 'Champion',
+        'Spartan' => 'Legend',
         _         => 'Petualang',
       };
 
-  /// Format lengkap: "Lvl. 24 Paladin"
+  /// Format lengkap berdasarkan rank: "Gold Warrior"
   static String fullTitle(int level, String rank) =>
-      'Lvl. $level ${title(rank)}';
+      '$rank ${title(rank)}';
 
   /// Subtitle screen per konteks (sesuai desain Stitch)
   static String screenSubtitle(String screen) => switch (screen) {

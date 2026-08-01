@@ -3,21 +3,17 @@ import '../utils/prefs_service.dart';
 import 'package:provider/provider.dart';
 import '../models/theme_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../models/calorie_provider.dart';
-import '../models/fuzzy_logic.dart';
-import '../models/user_profile.dart';
 import '../config/app_colors.dart';
 import '../widgets/rpg_app_bar.dart';
 import '../utils/app_snackbar.dart';
 import '../widgets/fantasy_card.dart';
-import '../widgets/fantasy_rank_badge.dart';
+import '../widgets/profile_settings_widgets.dart';
+import '../widgets/profile_hero_card.dart';
+import '../widgets/calorie_calculation_detail_modal.dart';
+import '../widgets/weekly_insight_card.dart';
 import 'main_screen.dart';
-import '../utils/notification_helper.dart';
 import '../services/smart_notification_service.dart';
-import 'progress_photo_screen.dart';
-import 'weight_log_screen.dart';
-import 'stats_screen.dart';
 import '../services/backup_service.dart';
 import '../services/gamification_service.dart';
 
@@ -138,7 +134,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final rankProgress = gamification.getRankProgress(_xp);
     final xpMin = rankProgress['min_xp']!;
     final xpMax = rankProgress['max_xp']!;
-    final xpProgress = xpMax > xpMin ? (_xp - xpMin) / (xpMax - xpMin) : 0.0;
+    final rankTheme = RankTheme.fromRank(_rank);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.kDarkBg : AppColors.stBackground,
@@ -148,407 +144,129 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             // ── 1. Profile Hero Card ─────────────────────────────────────────
-            // hero-gradient rounded-xl p-md, overflow hidden, card-inner-glow
+            ProfileHeroCard(
+              name: _name,
+              xp: _xp,
+              rank: _rank,
+              workoutStreak: _workoutStreak,
+              onEditPressed: () => setState(() => _isEditing = true),
+              weight: _weight,
+              height: _height,
+              bmiStr: bmiStr,
+              bmiLabel: bmiLabel,
+              bmiColor: bmiColor,
+              bmiBg: bmiBg,
+              goal: _goal,
+              targetCal: targetCal,
+              goalEmoji: goalEmoji,
+              activityLevel: _activityLevel,
+              age: _age,
+            ),
+            const SizedBox(height: 16),
+            _buildFuzzyLogicCard(rankTheme),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(AppColors.stSpaceMd),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.stPrimaryContainer, AppColors.stSecondaryContainer],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: rankTheme.borderColor, width: 2),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 10)),
+                  BoxShadow(
+                    color: rankTheme.glowColor,
+                    blurRadius: 15,
+                    spreadRadius: 1,
+                  ),
                 ],
               ),
-              child: Stack(
-                children: [
-                  // Edit button — absolute top right
-                  Positioned(
-                    top: 0, right: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.edit_rounded, color: Colors.white70, size: 20),
-                      onPressed: () => setState(() => _isEditing = true),
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Avatar — w-20 h-20, rounded-full, border-4 primary-container
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                width: 80, height: 80,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.fromBorderSide(BorderSide(color: AppColors.stPrimaryFixed, width: 4)),
-                                ),
-                                child: ClipOval(
-                                  child: Image.asset('assets/images/apex_avatar.png',
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      color: AppColors.stPrimaryFixed.withOpacity(0.3),
-                                      child: const Icon(Icons.person_rounded, color: Colors.white, size: 40),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Rank badge — absolute -bottom-2 -right-2
-                              Positioned(
-                                bottom: -2, right: -2,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.stSecondaryContainer,
-                                    borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
-                                    border: Border.all(color: AppColors.stOnSecondary.withOpacity(0.2)),
-                                  ),
-                                  child: Text('RANK ${GamificationService.getCurrentLevel(_xp)}',
-                                    style: GoogleFonts.nunitoSans(fontSize: 9, fontWeight: FontWeight.w800,
-                                      color: AppColors.stOnSecondary)),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: AppColors.stSpaceLg),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Name — headline-lg-mobile 22px/800
-                                Text(_name, style: GoogleFonts.montserrat(
-                                  fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, height: 28/22)),
-                                const SizedBox(height: AppColors.stSpaceXs),
-                                // Badges inline
-                                Wrap(
-                                  spacing: 4, runSpacing: 4,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        border: Border.all(color: Colors.white.withOpacity(0.4)),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(_rank.toUpperCase() + ' WARRIOR',
-                                        style: GoogleFonts.nunitoSans(fontSize: 9, fontWeight: FontWeight.w800,
-                                          letterSpacing: 1, color: AppColors.stPrimaryFixed)),
-                                    ),
-                                    Row(mainAxisSize: MainAxisSize.min, children: [
-                                      const Text('🔥', style: TextStyle(fontSize: 12)),
-                                      const SizedBox(width: 2),
-                                      Text('$_workoutStreak Hari Streak',
-                                        style: GoogleFonts.nunitoSans(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
-                                    ]),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      // XP Bar
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppColors.stSpaceMd),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('XP Progress', style: GoogleFonts.nunitoSans(
-                                  fontSize: 10, fontWeight: FontWeight.w700,
-                                  color: Colors.white.withOpacity(0.8), letterSpacing: 1)),
-                                Text('${_xp.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '\${m[1]}.')}'
-                                  ' / ${xpMax.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '\${m[1]}.')}',
-                                  style: GoogleFonts.nunitoSans(fontSize: 10, fontWeight: FontWeight.w700,
-                                    color: Colors.white.withOpacity(0.8))),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              height: 8, // h-2
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
-                                child: FractionallySizedBox(
-                                  alignment: Alignment.centerLeft,
-                                  widthFactor: xpProgress.clamp(0.0, 1.0),
-                                  child: Container(
-                                    decoration: const BoxDecoration(
-                                      gradient: LinearGradient(colors: [AppColors.stPrimaryFixed, AppColors.stPrimaryContainer]),
-                                    ),
-                                    child: Container(color: Colors.white.withOpacity(0.2)),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              child: const WeeklyInsightCard(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFuzzyLogicCard(RankTheme rankTheme) {
+    return GestureDetector(
+      onTap: () {
+        CalorieCalculationDetailModal.show(
+          context,
+          name: _name,
+          age: _age,
+          weight: _weight,
+          height: _height,
+          gender: _gender,
+          activityLevel: _activityLevel,
+          goal: _goal,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              rankTheme.gradientColors[0].withOpacity(0.85),
+              rankTheme.gradientColors[1].withOpacity(0.85),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: rankTheme.borderColor, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: rankTheme.glowColor,
+              blurRadius: 15,
+              spreadRadius: 1,
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.psychology_rounded,
+                color: Colors.white,
+                size: 28,
               ),
             ),
-            const SizedBox(height: AppColors.stStackGap),
-
-            // ── 2. Stat Tubuh ────────────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(AppColors.stSpaceMd),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer,
-                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-                border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.2)),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0,2))],
-              ),
+            const SizedBox(width: 16),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _SectionHeader(icon: Icons.bar_chart_rounded, label: 'STAT TUBUH', isDark: isDark),
-                  const SizedBox(height: AppColors.stSpaceMd),
-                  Row(
-                    children: [
-                      Expanded(child: _StatCell(label: 'BERAT', value: '${_weight.toInt()}', unit: 'kg', isDark: isDark)),
-                      const SizedBox(width: AppColors.stSpaceSm),
-                      Expanded(child: _StatCell(label: 'TINGGI', value: '${_height.toInt()}', unit: 'cm', isDark: isDark)),
-                      const SizedBox(width: AppColors.stSpaceSm),
-                      Expanded(child: _StatCell(label: 'BMI', value: bmiStr, unit: bmiLabel,
-                        valueColor: bmiColor, unitBg: bmiBg, unitColor: bmiColor, isDark: isDark)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppColors.stStackGap),
-
-            // ── 3. Mode Tujuan ───────────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(AppColors.stSpaceMd),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer,
-                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-                border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.2)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SectionHeader(icon: Icons.my_location_rounded, label: 'MODE TUJUAN', isDark: isDark),
-                  const SizedBox(height: AppColors.stSpaceMd),
-                  Container(
-                    padding: const EdgeInsets.all(AppColors.stSpaceMd),
-                    decoration: BoxDecoration(
-                      color: AppColors.stPrimaryContainer.withOpacity(0.1),
-                      border: Border.all(color: AppColors.stPrimaryContainer.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
+                  Text(
+                    'Fuzzy Logic Engine v4.2',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('$goalEmoji ${_goal.toUpperCase()}',
-                            style: GoogleFonts.montserrat(fontSize: 20, fontWeight: FontWeight.w700,
-                              color: isDark ? AppColors.stPrimaryFixed : AppColors.stPrimary)),
-                          Text('Target: ${targetCal.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '\${m[1]}.')} kcal/hari',
-                            style: GoogleFonts.inter(fontSize: 14,
-                              color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant)),
-                        ]),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.stPrimaryFixed : AppColors.stPrimary,
-                            borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
-                          ),
-                          child: Text('AKTIF', style: GoogleFonts.nunitoSans(
-                            fontSize: 10, fontWeight: FontWeight.w800,
-                            color: isDark ? AppColors.stOnPrimaryFixed : AppColors.stOnPrimary)),
-                        ),
-                      ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Lihat detail formula & kalkulasi kalori harianmu.',
+                    style: GoogleFonts.nunitoSans(
+                      fontSize: 11,
+                      color: Colors.white70,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppColors.stStackGap),
-
-            // ── 4. Rekomendasi AI ────────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(AppColors.stSpaceMd),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainerHigh,
-                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-                border: Border.all(color: AppColors.stPrimaryContainer.withOpacity(0.5), width: 2),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    Row(children: [
-                      Icon(Icons.psychology_rounded, color: AppColors.stSecondary, size: 20),
-                      const SizedBox(width: AppColors.stSpaceSm),
-                      Text('REKOMENDASI AI', style: GoogleFonts.nunitoSans(
-                        fontSize: 14, fontWeight: FontWeight.w700,
-                        color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant,
-                        letterSpacing: 1)),
-                    ]),
-                    GestureDetector(
-                      onTap: () => _showCalorieCalculationDetail(context),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.kDarkSurface2 : AppColors.stOnTertiaryContainer,
-                          border: Border.all(color: AppColors.stTertiary.withOpacity(0.3)),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          children: [
-                            Text('Fuzzy Logic v4.2', style: GoogleFonts.inter(
-                              fontSize: 10, fontStyle: FontStyle.italic,
-                              color: AppColors.stTertiaryFixed)),
-                            const SizedBox(width: 4),
-                            Icon(Icons.info_outline_rounded, size: 12, color: AppColors.stTertiary),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ]),
-                  const SizedBox(height: AppColors.stSpaceMd),
-                  // Inner white card
-                  Container(
-                    padding: const EdgeInsets.all(AppColors.stSpaceMd),
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurface,
-                      borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
-                      border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
-                    ),
-                    child: Column(children: [
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Text('${targetCal.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '\${m[1]}.')} kcal/hari',
-                          style: GoogleFonts.montserrat(fontSize: 20, fontWeight: FontWeight.w700,
-                            color: isDark ? AppColors.stPrimaryFixed : AppColors.stPrimary)),
-                        Row(children: [
-                          Icon(Icons.check_circle_rounded, color: AppColors.stSecondary, size: 16),
-                          const SizedBox(width: 4),
-                          Text('SESUAI', style: GoogleFonts.nunitoSans(
-                            fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.stSecondary)),
-                        ]),
-                      ]),
-                      const SizedBox(height: AppColors.stSpaceSm),
-                      // 4 tags — surface-container bg
-                      GridView.count(
-                        crossAxisCount: 2, shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 8, mainAxisSpacing: 8,
-                        childAspectRatio: 3.5,
-                        children: [
-                          _InfoTag(icon: Icons.monitor_heart_rounded, label: 'BMI: Normal', isDark: isDark),
-                          _InfoTag(icon: Icons.directions_run_rounded, label: 'Aktivitas: $_activityLevel', isDark: isDark),
-                          _InfoTag(icon: Icons.flag_rounded, label: 'Tujuan: $_goal', isDark: isDark),
-                          _InfoTag(icon: Icons.cake_rounded, label: 'Usia: $_age Tahun', isDark: isDark),
-                        ],
-                      ),
-                    ]),
-                  ),
-                  const SizedBox(height: AppColors.stSpaceMd),
-                  // Konsultasi Apex button — hero-gradient
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const MainScreen(initialIndex: 3))),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: AppColors.stSpaceMd),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.stPrimaryContainer, AppColors.stSecondaryContainer],
-                          begin: Alignment.topLeft, end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0,4))],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 22),
-                          const SizedBox(width: AppColors.stSpaceMd),
-                          Text('KONSULTASI APEX', style: GoogleFonts.montserrat(
-                            fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 22),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppColors.stStackGap),
-
-            // ── 5. Pengaturan ────────────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(AppColors.stSpaceMd),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainer,
-                borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-                border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.2)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('PENGATURAN', style: GoogleFonts.nunitoSans(
-                    fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1,
-                    color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant)),
-                  const SizedBox(height: AppColors.stSpaceMd),
-
-                  // Notifikasi — Switch (dipertahankan)
-                  _SettingsSwitch(
-                    icon: Icons.notifications_rounded, label: 'Notifikasi',
-                    value: _notificationsEnabled, isDark: isDark,
-                    onChanged: (val) async {
-                      setState(() => _notificationsEnabled = val);
-                      await PrefsService.i.setNotificationsEnabled(val);
-                      if (val) await SmartNotificationService.refreshAndReschedule();
-                      else await SmartNotificationService.cancelAll();
-                    },
-                  ),
-
-                  // Dark Mode — Switch (dipertahankan)
-                  _SettingsSwitch(
-                    icon: Icons.dark_mode_rounded, label: 'Tema Gelap',
-                    value: themeProvider.isDark, isDark: isDark,
-                    onChanged: (val) => themeProvider.setDark(val),
-                  ),
-
-                  // Item chevron
-                  _SettingsChevron(icon: Icons.translate_rounded, label: 'Bahasa', trailing: 'Indonesia', isDark: isDark),
-                  _SettingsChevron(icon: Icons.download_rounded, label: 'Export Data', isDark: isDark,
-                    onTap: () => BackupService.exportDataAsJson(context)),
-                  _SettingsChevron(icon: Icons.info_rounded, label: 'Tentang', isDark: isDark),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppColors.stStackGap),
-
-            // ── Logout ───────────────────────────────────────────────────────
-            GestureDetector(
-              onTap: () async {
-                final prefs = PrefsService.i.raw;
-                await prefs.clear();
-                if (mounted) Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const MainScreen(initialIndex: 0)));
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppColors.stSpaceMd),
-                child: Center(child: Text('Keluar dari Petualangan',
-                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700,
-                    color: AppColors.stError))),
-              ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Colors.white70,
+              size: 16,
             ),
           ],
         ),
@@ -669,6 +387,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  String _formatNumber(num val) {
+    if (val == val.toInt()) {
+      return val.toInt().toString();
+    }
+    return val.toStringAsFixed(1);
+  }
+
   InputDecoration _buildInputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
@@ -713,451 +438,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
-
-  void _showCalorieCalculationDetail(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // Calculate BMR, TDEE and adjustments
-    final profile = UserProfile(
-      name: _name,
-      age: _age,
-      weight: _weight,
-      height: _height,
-      gender: _gender,
-      activityLevel: _activityLevel,
-      goal: _goal,
-    );
-    final bmr = profile.calculateBMR();
-    final factor = profile.getActivityFactor();
-    final tdee = bmr * factor;
-    final target = context.read<CalorieProvider>().targetCalories;
-    final fuzzyAdjust = target - tdee.round();
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.kDarkBg : AppColors.stBackground,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(AppColors.stRadiusXl),
-              topRight: Radius.circular(AppColors.stRadiusXl),
-            ),
-          ),
-          padding: const EdgeInsets.all(AppColors.stSpaceMd),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.psychology_rounded, color: AppColors.stSecondary, size: 28),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Bagaimana Target Dihitung?',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'AI menghitung kebutuhan kalori Anda dengan menggabungkan formula medis standar dengan kecerdasan Fuzzy Logic.',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Step 1: BMR
-                _buildCalcStep(
-                  stepNum: '1',
-                  title: 'Basal Metabolic Rate (BMR)',
-                  formula: _gender == 'Pria'
-                      ? 'Rumus Mifflin-St Jeor (Pria):\n(10 x Berat) + (6.25 x Tinggi) - (5 x Usia) + 5'
-                      : 'Rumus Mifflin-St Jeor (Wanita):\n(10 x Berat) + (6.25 x Tinggi) - (5 x Usia) - 161',
-                  inputs: 'Profil: ${_gender}, ${_weight.toInt()} kg, ${_height.toInt()} cm, ${_age} tahun',
-                  result: '${bmr.round()} kcal',
-                  description: 'Energi minimum yang dibutuhkan tubuh Anda untuk bertahan hidup jika Anda beristirahat seharian penuh.',
-                  isDark: isDark,
-                ),
-                const SizedBox(height: 16),
-
-                // Step 2: TDEE
-                _buildCalcStep(
-                  stepNum: '2',
-                  title: 'Total Daily Energy Expenditure (TDEE)',
-                  formula: 'Rumus: BMR x Faktor Aktivitas',
-                  inputs: 'Aktivitas: ${_activityLevel} (Pengali: x${factor})',
-                  result: '${tdee.round()} kcal',
-                  description: 'Perkiraan total energi yang Anda bakar per hari setelah menghitung seluruh aktivitas fisik Anda.',
-                  isDark: isDark,
-                ),
-                const SizedBox(height: 16),
-
-                // Step 3: Fuzzy Adjustment
-                _buildCalcStep(
-                  stepNum: '3',
-                  title: 'Penyesuaian Cerdas Fuzzy Logic',
-                  formula: 'Berdasarkan status BMI & tujuan fitnes Anda (${_goal})',
-                  inputs: 'Penyesuaian surplus/defisit kalori secara bertahap',
-                  result: '${fuzzyAdjust >= 0 ? '+' : ''}${fuzzyAdjust} kcal',
-                  description: 'AI menyesuaikan target kalori agar Anda mencapai target ${_goal} tanpa memangkas energi di bawah batas aman (BMR) Anda.',
-                  isDark: isDark,
-                ),
-                const Divider(height: 32),
-
-                // Total Target Calorie Card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.stPrimaryContainer, AppColors.stSecondaryContainer],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(AppColors.stRadiusLg),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'TARGET HARIAN ANDA',
-                            style: GoogleFonts.nunitoSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white70,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${_goal.toUpperCase()}',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        '${target} kcal',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCalcStep({
-    required String stepNum,
-    required String title,
-    required String formula,
-    required String inputs,
-    required String result,
-    required String description,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppColors.stRadiusLg),
-        border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                decoration: const BoxDecoration(
-                  color: AppColors.stPrimary,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  stepNum,
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.kDarkBg : AppColors.stSurfaceContainer,
-              borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  formula,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  inputs,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const Divider(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Hasil:',
-                      style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: isDark ? AppColors.kDarkText : AppColors.stOnSurface),
-                    ),
-                    Text(
-                      result,
-                      style: GoogleFonts.montserrat(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.stPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-// ── Helper widgets ────────────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isDark;
-  const _SectionHeader({required this.icon, required this.label, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.stPrimary, size: 20),
-        const SizedBox(width: AppColors.stSpaceSm),
-        Text(label, style: GoogleFonts.nunitoSans(
-          fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1,
-          color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant)),
-      ],
-    );
-  }
 }
 
-class _StatCell extends StatelessWidget {
-  final String label, value, unit;
-  final Color? valueColor, unitBg, unitColor;
-  final bool isDark;
-
-  const _StatCell({
-    required this.label, required this.value, required this.unit,
-    required this.isDark, this.valueColor, this.unitBg, this.unitColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppColors.stSpaceSm),
-      decoration: BoxDecoration(
-        // bg-background = surface-container-lowest (putih)
-        color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
-        border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
-      ),
-      child: Column(children: [
-        Text(label, style: GoogleFonts.nunitoSans(
-          fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5,
-          color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline)),
-        const SizedBox(height: 2),
-        Text(value, style: GoogleFonts.montserrat(
-          fontSize: 22, fontWeight: FontWeight.w900,
-          color: valueColor ?? (isDark ? AppColors.kDarkText : AppColors.stOnSurface))),
-        const SizedBox(height: 2),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-          decoration: BoxDecoration(
-            color: unitBg ?? Colors.transparent,
-            borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
-          ),
-          child: Text(unit, style: GoogleFonts.nunitoSans(
-            fontSize: 10, fontWeight: FontWeight.w700,
-            color: unitColor ?? (isDark ? AppColors.kDarkTextSub : AppColors.stOutline))),
-        ),
-      ]),
-    );
-  }
-}
-
-class _InfoTag extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isDark;
-  const _InfoTag({required this.icon, required this.label, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainer,
-        borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
-      ),
-      child: Row(children: [
-        Icon(icon, size: 14, color: AppColors.stOutline),
-        const SizedBox(width: 4),
-        Expanded(child: Text(label, style: GoogleFonts.inter(
-          fontSize: 11, fontWeight: FontWeight.w500,
-          color: isDark ? AppColors.kDarkText : AppColors.stOnSurface),
-          maxLines: 1, overflow: TextOverflow.ellipsis)),
-      ]),
-    );
-  }
-}
-
-class _SettingsSwitch extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool value, isDark;
-  final ValueChanged<bool> onChanged;
-
-  const _SettingsSwitch({
-    required this.icon, required this.label,
-    required this.value, required this.isDark, required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppColors.stSpaceSm),
-      child: Row(children: [
-        // icon circle — primary-container/20
-        Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(
-            color: AppColors.stPrimaryContainer.withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, size: 18, color: AppColors.stPrimary),
-        ),
-        const SizedBox(width: AppColors.stSpaceMd),
-        Expanded(child: Text(label, style: GoogleFonts.inter(
-          fontSize: 14, fontWeight: FontWeight.w500,
-          color: isDark ? AppColors.kDarkText : AppColors.stOnSurface))),
-        Switch(value: value, onChanged: onChanged),
-      ]),
-    );
-  }
-}
-
-class _SettingsChevron extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String? trailing;
-  final bool isDark;
-  final VoidCallback? onTap;
-
-  const _SettingsChevron({
-    required this.icon, required this.label, required this.isDark,
-    this.trailing, this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: AppColors.stSpaceSm),
-        child: Row(children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.stPrimaryContainer.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 18, color: AppColors.stPrimary),
-          ),
-          const SizedBox(width: AppColors.stSpaceMd),
-          Expanded(child: Text(label, style: GoogleFonts.inter(
-            fontSize: 14, fontWeight: FontWeight.w500,
-            color: isDark ? AppColors.kDarkText : AppColors.stOnSurface))),
-          if (trailing != null) ...[
-            Text(trailing!, style: GoogleFonts.inter(
-              fontSize: 12, color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline)),
-            const SizedBox(width: 4),
-          ],
-          Icon(Icons.chevron_right_rounded,
-            color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline, size: 20),
-        ]),
-      ),
-    );
-  }
-}

@@ -14,7 +14,9 @@ import '../config/app_theme.dart';
 import '../widgets/fantasy_card.dart';
 import '../widgets/fantasy_calorie_ring.dart';
 import '../widgets/macro_progress_card.dart';
-import '../widgets/fantasy_rank_badge.dart';
+import '../widgets/macro_card.dart';
+import '../widgets/mission_item.dart';
+import '../widgets/adventurer_guide_card.dart';
 import '../widgets/weight_tracker_card.dart';
 import '../widgets/water_tracker_card.dart';
 import '../widgets/workout_tracker_card.dart';
@@ -512,7 +514,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final caloriesLeft = calorieProvider.targetCalories - calorieProvider.totalConsumedCalories;
 
     String tip;
-    if (hasLowProtein) {
+    if (calorieProvider.totalConsumedCalories == 0) {
+      tip = 'Belum ada asupan hari ini. Ayo isi energimu untuk memulai perjalanan ksatria! 🍳';
+    } else if (hasLowProtein) {
       tip = 'Protein masih kurang ${proteinGap}g! Selesaikan misi "Daging Perkasa".';
     } else if (caloriesLeft > 500) {
       tip = 'Masih ada $caloriesLeft kcal tersisa. Waktunya makan siang ksatria! ⚔️';
@@ -609,21 +613,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Column(
       children: [
-          _MacroCard(
+          MacroCard(
             emoji: '🥩', label: 'Protein',
             current: prot, target: tProt,
             color: AppColors.stPrimary,
             barColor: AppColors.stSecondary,
           ),
           const SizedBox(height: 8),
-          _MacroCard(
+          MacroCard(
             emoji: '🍞', label: 'Karbohidrat',
             current: carb, target: tCarb,
             color: const Color(0xFF2196F3),
             barColor: const Color(0xFF2196F3),
           ),
           const SizedBox(height: 8),
-          _MacroCard(
+          MacroCard(
             emoji: '🥑', label: 'Lemak',
             current: fat, target: tFat,
             color: const Color(0xFF4CAF50),
@@ -680,7 +684,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          _MissionItem(
+          MissionItem(
             emoji: '🥩',
             bgColor: const Color(0xFFF3E5F5),
             title: 'Daging Perkasa',
@@ -693,7 +697,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 : null,
           ),
           const SizedBox(height: 8),
-          _MissionItem(
+          MissionItem(
             emoji: '🔥',
             bgColor: AppColors.stErrorContainer,
             title: 'Latihan Membara',
@@ -706,7 +710,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 : null,
           ),
           const SizedBox(height: 8),
-          _MissionItem(
+          MissionItem(
             emoji: '💧',
             bgColor: const Color(0xFFDBEAFE),
             title: 'Air Kehidupan',
@@ -925,7 +929,13 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 12),
 
               if (_showGuideCard) ...[
-                _buildAdventurerGuideCard(Theme.of(context).brightness == Brightness.dark),
+                AdventurerGuideCard(
+                  onDismiss: () {
+                    setState(() {
+                      _showGuideCard = false;
+                    });
+                  },
+                ),
                 const SizedBox(height: 12),
               ],
 
@@ -945,357 +955,63 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildMacroBarsSection(calorieProvider).animate().fadeIn(delay: 400.ms),
               const SizedBox(height: 12),
 
-              _buildQuestBoardSection(calorieProvider).animate().fadeIn(delay: 500.ms).slideX(begin: 0.1),
-              const SizedBox(height: 12),
-
-              _buildWeeklyStatsCard(calorieProvider.targetCalories.toDouble()).animate().fadeIn(delay: 600.ms),
-              const SizedBox(height: 12),
-
-              const WeeklyInsightCard().animate().fadeIn(delay: 650.ms),
-              const SizedBox(height: 24),
-
-              Text(
-                'Log Petualangan',
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.stOnSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              WeightTrackerCard(
-                userProfile: _userProfile,
-                onLogAdded: _loadUserProfile,
-              ).animate().fadeIn(delay: 700.ms),
-              const SizedBox(height: 12),
-              const WaterTrackerCard().animate().fadeIn(delay: 800.ms),
-              const SizedBox(height: 12),
-              WorkoutTrackerCard(
-                streakDays: _streakDays,
-                lastWorkoutDate: _lastWorkoutDate,
-                onLogAdded: _loadWorkoutStats,
-              ).animate().fadeIn(delay: 900.ms),
-              const SizedBox(height: 100),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdventurerGuideCard(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-        border: Border.all(color: AppColors.stSecondary.withOpacity(0.3), width: 1.5),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('🧙‍♂️', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 8),
                   Text(
-                    'YOUR AI COACH',
+                    'Log Petualangan',
                     style: GoogleFonts.montserrat(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.stSecondary,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                ],
-              ),
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.close_rounded, size: 18, color: Colors.grey),
-                onPressed: () async {
-                  setState(() {
-                    _showGuideCard = false;
-                  });
-                  await PrefsService.i.raw.setBool('hide_adventurer_guide', true);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Selamat datang di Guild Healthy Calories! Sebagai seorang Binaragawan, misi Anda adalah menjaga surplus/defisit nutrisi agar performa tubuh maksimal. Berikut adalah panduan singkat fitur utama Anda:',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildGuideItem('📊', 'Dashboard Stat', 'Monitor sisa kalori harian dan sisa protein secara real-time di bagian atas.', isDark),
-          const SizedBox(height: 8),
-          _buildGuideItem('🎯', 'Quest Harian', 'Selesaikan misi konsumsi protein, kalori, dan air untuk mendapatkan Bonus XP.', isDark),
-          const SizedBox(height: 8),
-          _buildGuideItem('🧠', 'AI Coach Apex', 'Bicaralah dengan Apex di menu chat untuk berkonsultasi seputar menu makanan Anda.', isDark),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGuideItem(String emoji, String title, String desc, bool isDark) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 16)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: RichText(
-            text: TextSpan(
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
-                height: 1.3,
-              ),
-              children: [
-                TextSpan(
-                  text: '$title: ',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                TextSpan(
-                  text: desc,
-                  style: TextStyle(color: isDark ? AppColors.kDarkTextSub : AppColors.stOnSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MacroCard extends StatelessWidget {
-  final String emoji;
-  final String label;
-  final int current;
-  final int target;
-  final Color color;
-  final Color barColor;
-
-  const _MacroCard({
-    required this.emoji,
-    required this.label,
-    required this.current,
-    required this.target,
-    required this.color,
-    required this.barColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final double pct = target > 0 ? (current / target).clamp(0.0, 1.5) : 0.0;
-    final int pctInt = (pct * 100).round().clamp(0, 999);
-    final bool isOver = pct > 1.0;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.kDarkSurface : AppColors.stSurfaceContainerLowest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? AppColors.kDarkBorder : AppColors.stOutlineVariant.withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: isDark ? AppColors.kDarkSoftShadow : [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6, offset: const Offset(0, 2)),
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4, offset: const Offset(0, 1)),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(emoji, style: const TextStyle(fontSize: 20)),
-                  const SizedBox(width: 4),
-                  Text(
-                    label,
-                    style: GoogleFonts.nunitoSans(
-                      fontSize: 14,
+                      fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? AppColors.kDarkText : AppColors.stOnSurfaceVariant,
+                      color: AppColors.stOnSurface,
+                    ),
+                  ),
+                  Text(
+                    'Geser ↔',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.stOutline,
                     ),
                   ),
                 ],
               ),
-              Text(
-                '$pctInt%',
-                style: GoogleFonts.nunitoSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: isOver ? AppColors.stError : color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Stack(
-            children: [
-              Container(
-                height: 8,
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(100),
-                ),
-              ),
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: pct.clamp(0.0, 1.0)),
-                duration: const Duration(milliseconds: 700),
-                curve: Curves.easeOutCubic,
-                builder: (_, v, __) => FractionallySizedBox(
-                  widthFactor: v,
-                  child: Container(
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: isOver ? AppColors.stError : barColor,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '${current}g / ${target}g',
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: FontWeight.w400,
-                color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MissionItem extends StatelessWidget {
-  final String emoji;
-  final Color bgColor;
-  final String title;
-  final String subtitle;
-  final String xpLabel;
-  final bool isChecked;
-  final bool isDimmed;
-  final VoidCallback? onTap;
-
-  const _MissionItem({
-    required this.emoji,
-    required this.bgColor,
-    required this.title,
-    required this.subtitle,
-    required this.xpLabel,
-    required this.isChecked,
-    required this.isDimmed,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Opacity(
-        opacity: isDimmed && !isChecked ? 0.75 : 1.0,
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.stSurfaceContainerLowest,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.2)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 20))),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 250,
+                child: PageView(
+                  controller: PageController(viewportFraction: 0.92),
+                  physics: const BouncingScrollPhysics(),
                   children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.nunitoSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.stOnSurface,
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: WeightTrackerCard(
+                        userProfile: _userProfile,
+                        onLogAdded: _loadUserProfile,
                       ),
                     ),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: AppColors.stOutline,
+                    const Padding(
+                      padding: EdgeInsets.only(right: 12),
+                      child: WaterTrackerCard(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: WorkoutTrackerCard(
+                        streakDays: _streakDays,
+                        lastWorkoutDate: _lastWorkoutDate,
+                        onLogAdded: _loadWorkoutStats,
                       ),
                     ),
                   ],
-                ),
+                ).animate().fadeIn(delay: 500.ms),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.stSecondaryFixed,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      xpLabel,
-                      style: GoogleFonts.nunitoSans(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.stSecondary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: isChecked ? AppColors.stPrimary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: isChecked ? AppColors.stPrimary : AppColors.stOutline,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: isChecked
-                        ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
-                        : null,
-                  ),
-                ],
-              ),
+              const SizedBox(height: 16),
+
+              _buildQuestBoardSection(calorieProvider).animate().fadeIn(delay: 600.ms).slideX(begin: 0.1),
+              const SizedBox(height: 12),
+
+              _buildWeeklyStatsCard(calorieProvider.targetCalories.toDouble()).animate().fadeIn(delay: 700.ms),
+              const SizedBox(height: 100),
             ],
           ),
         ),

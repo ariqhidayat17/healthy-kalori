@@ -6,6 +6,8 @@ import '../config/app_colors.dart';
 import '../models/calorie_provider.dart';
 import '../utils/prefs_service.dart';
 import '../utils/rpg_title_helper.dart';
+import '../screens/settings_screen.dart';
+import '../screens/rank_progress_screen.dart';
 
 /// AppBar — diterjemahkan presisi dari <header> di setiap code.html Stitch.
 ///
@@ -92,6 +94,19 @@ class RPGAppBar extends StatelessWidget implements PreferredSizeWidget {
                 // gap-3 (12px)
                 Row(
                   children: [
+                    if (Navigator.of(context).canPop()) ...[
+                      IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: isDark ? AppColors.kDarkText : AppColors.stPrimary,
+                          size: 20,
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     const _AvatarPhoto(),
                     const SizedBox(width: 12),
                     Column(
@@ -127,11 +142,21 @@ class RPGAppBar extends StatelessWidget implements PreferredSizeWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (actions != null) ...actions!,
-                    // Icon kanan SELALU military_tech, warna primary solid
+                    // Icon kanan: profile → settings, lainnya → rank progress
                     IconButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        if (screenKey == 'profile') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          );
+                        } else if (screenKey != 'rank') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const RankProgressScreen()),
+                          );
+                        }
+                      },
                       icon: Icon(
-                        Icons.military_tech_rounded,
+                        screenKey == 'profile' ? Icons.settings_rounded : Icons.military_tech_rounded,
                         color: isDark ? AppColors.kDarkText : AppColors.stPrimary,
                         size: 24,
                       ),
@@ -159,18 +184,28 @@ class _AvatarPhoto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rank = PrefsService.i.userLevel;
+    final hasFrame = ['Bronze', 'Silver', 'Gold', 'Diamond', 'Spartan'].contains(rank);
+
     return Container(
       width: 40,
       height: 40,
-      padding: const EdgeInsets.all(2), // p-0.5 (border inset)
-      decoration: const BoxDecoration(
+      padding: hasFrame ? EdgeInsets.zero : const EdgeInsets.all(2), // p-0.5 (border inset)
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.fromBorderSide(
-          BorderSide(color: AppColors.stPrimaryContainer, width: 2),
-        ),
+        border: hasFrame
+            ? null
+            : const Border.fromBorderSide(
+                BorderSide(color: AppColors.stPrimaryContainer, width: 2),
+              ),
       ),
       child: ClipOval(
         child: Image.asset(
+          rank == 'Bronze' ? 'assets/images/bronze.png' :
+          rank == 'Silver' ? 'assets/images/silver.png' :
+          rank == 'Gold' ? 'assets/images/gold.png' :
+          rank == 'Diamond' ? 'assets/images/diamond.png' :
+          rank == 'Spartan' ? 'assets/images/spartan.png' :
           'assets/images/apex_avatar.png',
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Container(

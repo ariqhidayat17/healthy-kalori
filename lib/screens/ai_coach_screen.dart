@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/gemini_service.dart';
@@ -12,8 +11,6 @@ import '../config/app_colors.dart';
 import '../widgets/rpg_app_bar.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/fantasy_card.dart';
-import '../widgets/fantasy_quick_action_chip.dart';
-import '../widgets/apex_avatar_header.dart';
 import '../widgets/food_recommendation_card.dart';
 
 class AiCoachScreen extends StatefulWidget {
@@ -28,10 +25,8 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
   final GeminiService _geminiService = GeminiService();
   final ScrollController _scrollController = ScrollController();
 
-  // Pesan yang ditampilkan di UI (tidak termasuk system prompt)
   final List<Map<String, String>> _displayMessages = [];
 
-  List<String> _suggestedQuestions = [];
   final List<String> _allQuestions = [
     "Berapa target protein saya hari ini?",
     "Apa menu bulking yang direkomendasikan?",
@@ -40,19 +35,15 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     "Saran camilan sehat tinggi protein",
   ];
 
-  // Semua pesan yang dikirim ke API (termasuk system prompt)
   final List<Map<String, String>> _apiMessages = [];
 
   bool _isLoading = false;
   bool _isInitialized = false;
 
-  static const String _prefsKey = 'ai_chat_history';
-
   @override
   void initState() {
     super.initState();
     _allQuestions.shuffle();
-    _suggestedQuestions = _allQuestions.take(4).toList();
     _initCoach();
   }
 
@@ -63,7 +54,6 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     super.dispose();
   }
 
-  // Inisialisasi: muat profil, bangun system prompt, load riwayat
   Future<void> _initCoach() async {
     final prefs = PrefsService.i;
     final name = prefs.name;
@@ -71,7 +61,6 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     final weight = prefs.weight;
     final height = prefs.height;
     final gender = prefs.gender;
-    final activityLevel = prefs.activityLevel;
     final goal = prefs.goal;
 
     final calorieProvider = context.read<CalorieProvider>();
@@ -84,10 +73,10 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     final f = calorieProvider.totalConsumedFats;
     final tf = calorieProvider.targetFats;
 
-    // Bangun system prompt (selalu paling awal, tidak ditampilkan di UI)
     final systemPrompt = {
       'role': 'system',
-      'content': '''Kamu adalah **Apex**, AI Fitness Coach pribadi yang berpenampilan seperti Wise Trainer dari game RPG fantasy. Kamu beroperasi di dalam aplikasi "Healthy Calories" — pelacak kalori dan makronutrisi untuk binaragawan.
+      'content':
+          '''Kamu adalah **Apex**, AI Fitness Coach pribadi yang berpenampilan seperti Wise Trainer dari game RPG fantasy. Kamu beroperasi di dalam aplikasi "Healthy Calories" — pelacak kalori dan makronutrisi untuk binaragawan.
 
 ### Kepribadian Apex:
 - Ramah dan bijaksana seperti mentor/trainer di game RPG (vibe kakek bijak atau guru bela diri).
@@ -117,16 +106,17 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
 
     _apiMessages.add(systemPrompt);
 
-    // Muat riwayat percakapan
     final savedHistory = PrefsService.i.aiChatHistory;
     if (savedHistory != null) {
       try {
         final List<dynamic> decoded = jsonDecode(savedHistory);
         final history = decoded.cast<Map<String, dynamic>>().map((m) {
-          return {'role': m['role'] as String, 'content': m['content'] as String};
+          return {
+            'role': m['role'] as String,
+            'content': m['content'] as String
+          };
         }).toList();
 
-        // Tambahkan riwayat ke API messages dan display messages
         for (var msg in history) {
           if (msg['role'] == 'user' || msg['role'] == 'assistant') {
             _displayMessages.add(msg);
@@ -145,7 +135,6 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     _scrollToBottom();
   }
 
-  // Simpan riwayat (dibatasi 100 pesan terakhir)
   Future<void> _saveHistory() async {
     final capped = _displayMessages.length > 100
         ? _displayMessages.sublist(_displayMessages.length - 100)
@@ -153,23 +142,18 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     await PrefsService.i.setAiChatHistory(jsonEncode(capped));
   }
 
-  // Hapus semua riwayat
   Future<void> _clearHistory() async {
     await PrefsService.i.clearAiChatHistory();
     setState(() {
       _displayMessages.clear();
       _apiMessages.clear();
-      // Bangun ulang system prompt
       _initCoach();
     });
   }
 
-  // ── Parser rekomendasi makanan dari respons Apex ────────────────────────
-  //
-  // Mendeteksi format: 🍗 **Nama Makanan**\n• Kalori: 330 kcal | Protein: 62g | Karbo: Xg | Lemak: 7g
-  // Mengembalikan null jika tidak ada match (pesan biasa).
   _ParsedFoodRec? _parseFoodRecommendation(String content) {
-    final nameMatch = RegExp(r'[\p{Emoji}]\s*\*\*(.+?)\*\*', unicode: true).firstMatch(content);
+    final nameMatch =
+        RegExp(r'[\p{Emoji}]\s*\*\*(.+?)\*\*', unicode: true).firstMatch(content);
     final statsMatch = RegExp(
       r'Kalori:\s*(\d+)\s*kcal.*?Protein:\s*(\d+)\s*g(?:.*?Karbo(?:hidrat)?:\s*(\d+)\s*g)?.*?Lemak:\s*(\d+)\s*g',
       caseSensitive: false,
@@ -216,7 +200,6 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     }
   }
 
-  // Scroll ListView ke bawah
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -229,13 +212,11 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     });
   }
 
-  // Kirim pesan
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
     _controller.clear();
-
     final userMsg = {'role': 'user', 'content': text};
 
     setState(() {
@@ -246,9 +227,7 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
 
     _scrollToBottom();
 
-    // Kirim ke API menggunakan API messages (dengan konteks)
     final response = await _geminiService.getChatResponse(_apiMessages);
-
     final assistantMsg = {'role': 'assistant', 'content': response};
 
     setState(() {
@@ -257,9 +236,8 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
       _isLoading = false;
     });
 
-    // Batasi panjang _apiMessages agar tidak overflow token (sistem + maks 20 pesan terakhir)
     if (_apiMessages.length > 21) {
-      final systemMsg = _apiMessages.first; // Pertahankan system prompt
+      final systemMsg = _apiMessages.first;
       final trimmed = _apiMessages.sublist(_apiMessages.length - 20);
       _apiMessages
         ..clear()
@@ -267,28 +245,148 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
         ..addAll(trimmed);
     }
 
-    // Simpan riwayat setelah mendapat balasan
     await _saveHistory();
     _scrollToBottom();
+  }
+
+  // ── Quest Status Bar ──────────────────────────────────────────────────
+  Widget _buildQuestStatusBar() {
+    final provider = context.watch<CalorieProvider>();
+    final caloriePercent =
+        (provider.totalConsumedCalories / provider.targetCalories)
+            .clamp(0.0, 1.0);
+    final proteinPercent =
+        (provider.totalConsumedProtein / provider.targetProtein)
+            .clamp(0.0, 1.0);
+
+    return FantasyCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Text('📜', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Quest Harian',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AppColors.kPrimaryGold,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_sweep_outlined,
+                    size: 18, color: Colors.redAccent),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: _showClearHistoryDialog,
+                tooltip: 'Hapus Riwayat',
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuestMetric(
+                  icon: '⚡',
+                  label: 'Energi',
+                  value:
+                      '${provider.totalConsumedCalories} / ${provider.targetCalories} kcal',
+                  percent: caloriePercent,
+                  color: AppColors.kPrimaryOrange,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildQuestMetric(
+                  icon: '💪',
+                  label: 'Protein',
+                  value:
+                      '${provider.totalConsumedProtein.toStringAsFixed(0)}g / ${provider.targetProtein.toStringAsFixed(0)}g',
+                  percent: proteinPercent,
+                  color: AppColors.kPrimaryGold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestMetric({
+    required String icon,
+    required String label,
+    required String value,
+    required double percent,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(icon, style: const TextStyle(fontSize: 12)),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                    color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.plusJakartaSans(
+              color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: percent,
+            minHeight: 6,
+            backgroundColor: Colors.white10,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.kBgCream,
       appBar: RPGAppBar(screenKey: 'apex'),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: !_isInitialized
-            ? const Center(child: CircularProgressIndicator(color: AppColors.kPrimaryOrange))
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.kPrimaryOrange))
             : Column(
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: _buildQuestStatusBar(),
+                  ),
                   Expanded(
                     child: _displayMessages.isEmpty
                         ? _buildEmptyState()
                         : ListView.builder(
                             controller: _scrollController,
-                            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                            keyboardDismissBehavior:
+                                ScrollViewKeyboardDismissBehavior.onDrag,
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                             itemCount: _displayMessages.length,
                             itemBuilder: (context, index) {
@@ -296,25 +394,34 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
                               final isUser = msg['role'] == 'user';
                               final content = msg['content']!;
 
-                              // Cek apakah ini rekomendasi makanan terstruktur
-                              final foodRec = !isUser ? _parseFoodRecommendation(content) : null;
+                              final foodRec = !isUser
+                                  ? _parseFoodRecommendation(content)
+                                  : null;
 
                               return ChatBubble(
                                 message: content,
-                                type: isUser ? ChatMessageType.user : ChatMessageType.apex,
-                                time: DateFormat('HH:mm').format(DateTime.now()),
+                                type: isUser
+                                    ? ChatMessageType.user
+                                    : ChatMessageType.apex,
+                                time: DateFormat('HH:mm')
+                                    .format(DateTime.now()),
                                 richContent: foodRec != null
                                     ? FoodRecommendationCard(
                                         foodName: foodRec.name,
-                                        rarity: _rarityForCalories(foodRec.calories, foodRec.protein),
+                                        rarity: _rarityForCalories(
+                                            foodRec.calories, foodRec.protein),
                                         calories: foodRec.calories,
                                         protein: foodRec.protein,
                                         carbs: foodRec.carbs,
                                         fats: foodRec.fats,
-                                        onAddToLog: () => _addRecommendationToLog(foodRec),
+                                        onAddToLog: () =>
+                                            _addRecommendationToLog(foodRec),
                                       )
                                     : null,
-                              ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1);
+                              )
+                                  .animate()
+                                  .fadeIn(duration: 300.ms)
+                                  .slideY(begin: 0.1);
                             },
                           ),
                   ),
@@ -326,97 +433,240 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
     );
   }
 
+  // ── Empty State — RPG Welcome ─────────────────────────────────────────
   Widget _buildEmptyState() {
     final calorieProvider = context.watch<CalorieProvider>();
-    final proteinGap = (calorieProvider.targetProtein - calorieProvider.totalConsumedProtein)
-        .clamp(0, calorieProvider.targetProtein);
+    final proteinGap =
+        (calorieProvider.targetProtein - calorieProvider.totalConsumedProtein)
+            .clamp(0, calorieProvider.targetProtein);
     final name = PrefsService.i.name.split(' ').first;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final greeting = ApexGreetingBuilder.build(name: name, proteinGap: proteinGap);
+    final goldColor = isDark ? AppColors.kPrimaryGold : AppColors.stPrimary;
+    final dividerColor = isDark ? Colors.white12 : AppColors.stOutlineVariant.withOpacity(0.3);
+    final welcomeTextColor = isDark ? Colors.white70 : AppColors.stOnSurfaceVariant;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       child: Column(
         children: [
-          ApexAvatarHeader(
-            greeting: greeting.text,
-            highlights: greeting.highlights,
-          ),
+          const SizedBox(height: 16),
+          _buildApexPortrait(),
           const SizedBox(height: 24),
-          _buildQuickActionsRow(),
+          FantasyCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text('🧙‍♂️', style: TextStyle(fontSize: 20)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Apex, Wise Trainer',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: goldColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+                Divider(color: dividerColor, height: 20),
+                _buildInfoRow('⚔️ Adventurer', name),
+                _buildInfoRow(
+                    '🎯 Quest Target', '${calorieProvider.targetCalories} kcal'),
+                _buildInfoRow(
+                    '💪 Protein',
+                    proteinGap > 0
+                        ? '${proteinGap.toStringAsFixed(1)}g tersisa'
+                        : '✅ Tercapai!'),
+                const SizedBox(height: 14),
+                Text(
+                  'Selamat datang, Adventurer $name! 🧙‍♂️\nAku Apex, penasihat kesehatanmu. Tanyakan apapun tentang nutrisi, atau pilih salah satu quest di bawah.',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: welcomeTextColor,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1),
+          const SizedBox(height: 20),
+          _buildQuickQuestButtons(),
         ],
       ),
     );
   }
 
-  // Quick action chips — sesuai desain Stitch: Tips | Makanan | Analisis | ...
-  Widget _buildQuickActionsRow() {
+  Widget _buildInfoRow(String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: GoogleFonts.plusJakartaSans(
+                color: isDark ? Colors.white38 : AppColors.stOnSurfaceVariant.withOpacity(0.7), fontSize: 12),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.plusJakartaSans(
+              color: isDark ? Colors.white : AppColors.stOnSurface,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApexPortrait() {
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+            color: AppColors.kPrimaryGold.withOpacity(0.5), width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.kPrimaryGold.withOpacity(0.15),
+            blurRadius: 20,
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Image.asset(
+          'assets/images/apex_avatar.png',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: AppColors.kDarkSurface,
+              child: const Center(
+                child: Text('🧙‍♂️', style: TextStyle(fontSize: 48)),
+              ),
+            );
+          },
+        ),
+      ),
+    )
+        .animate(
+            onPlay: (controller) => controller.repeat(reverse: true))
+        .scale(
+            begin: const Offset(0.97, 0.97),
+            end: const Offset(1.03, 1.03),
+            duration: 2.seconds,
+            curve: Curves.easeInOut);
+  }
+
+  // ── Quick Quest Buttons ───────────────────────────────────────────────
+  Widget _buildQuickQuestButtons() {
+    final quests = [
+      _QuestAction(icon: '💡', label: 'Tips Harian',
+          prompt: 'Berikan tips harian untuk saya hari ini.'),
+      _QuestAction(icon: '🍗', label: 'Rekomendasi',
+          prompt: 'Rekomendasikan makanan sehat untuk sisa kalori saya.'),
+      _QuestAction(icon: '📊', label: 'Analisis Makro',
+          prompt: 'Analisis progres kalori dan makro saya hari ini.'),
+      _QuestAction(icon: '🏋️', label: 'Saran Latihan',
+          prompt: 'Apa saran latihan untuk goal saya saat ini?'),
+    ];
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: [
-          FantasyQuickActionChip(
-            label: 'Tips',
-            icon: '💡',
-            isActive: true,
-            onTap: () {
-              _controller.text = "Berikan tips harian untuk saya hari ini.";
-              _sendMessage();
-            },
-          ),
-          const SizedBox(width: 8),
-          FantasyQuickActionChip(
-            label: 'Makanan',
-            icon: '🍽️',
-            onTap: () {
-              _controller.text = "Rekomendasikan makanan sehat untuk sisa kalori saya.";
-              _sendMessage();
-            },
-          ),
-          const SizedBox(width: 8),
-          FantasyQuickActionChip(
-            label: 'Analisis',
-            icon: '📊',
-            onTap: () {
-              _controller.text = "Analisis progres kalori dan makro saya hari ini.";
-              _sendMessage();
-            },
-          ),
-          const SizedBox(width: 8),
-          FantasyQuickActionChip(
-            label: 'Workout',
-            icon: '💪',
-            onTap: () {
-              _controller.text = "Apa saran latihan untuk goal saya saat ini?";
-              _sendMessage();
-            },
-          ),
-        ],
+        children: quests.map((q) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _buildQuestChip(
+              icon: q.icon,
+              label: q.label,
+              onTap: () {
+                _controller.text = q.prompt;
+                _sendMessage();
+              },
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
+  Widget _buildQuestChip({
+    required String icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.kPrimaryGold.withOpacity(0.08),
+            border:
+                Border.all(color: AppColors.kPrimaryGold.withOpacity(0.3)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  color: isDark ? Colors.white : AppColors.stPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Typing Indicator ──────────────────────────────────────────────────
   Widget _buildTypingIndicator() {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, bottom: 8),
+      padding: const EdgeInsets.only(left: 16, bottom: 12),
       child: Row(
         children: [
           _buildApexMiniAvatar(),
           const SizedBox(width: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.kPrimaryGold.withOpacity(0.2)),
+              color: AppColors.kPrimaryGold.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: AppColors.kPrimaryGold.withOpacity(0.2)),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                _TypingDot(delay: 0),
-                SizedBox(width: 4),
-                _TypingDot(delay: 200),
-                SizedBox(width: 4),
-                _TypingDot(delay: 400),
+                Text(
+                  '🧙‍♂️ Apex sedang berpikir',
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AppColors.kPrimaryGold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const _TypingDot(delay: 0),
+                const SizedBox(width: 2),
+                const _TypingDot(delay: 200),
+                const SizedBox(width: 2),
+                const _TypingDot(delay: 400),
               ],
             ),
           ),
@@ -430,15 +680,33 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        gradient: AppColors.kGradientSunset,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 1.5),
+        border: Border.all(
+            color: AppColors.kPrimaryGold.withOpacity(0.5), width: 1.5),
       ),
-      child: const Center(child: Text('🧙‍♂️', style: TextStyle(fontSize: 16))),
+      child: ClipOval(
+        child: Image.asset(
+          'assets/images/apex_avatar.png',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: AppColors.kDarkSurface,
+              child: const Center(
+                child: Text('🧙‍♂️', style: TextStyle(fontSize: 16)),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
+  // ── Input Area ────────────────────────────────────────────────────────
   Widget _buildInputArea() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputColor = isDark ? Colors.white : AppColors.stOnSurface;
+    final hintColor = isDark ? Colors.white30 : AppColors.stOnSurfaceVariant.withOpacity(0.5);
+
     return Container(
       padding: EdgeInsets.only(
         top: 10,
@@ -447,36 +715,34 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
         right: 12,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -4),
-          ),
-        ],
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(
+            top: BorderSide(
+                color: AppColors.kPrimaryGold.withOpacity(0.15), width: 1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: AppColors.kBgCream,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.grey[200]!),
+                color: AppColors.kPrimaryGold.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: AppColors.kPrimaryGold.withOpacity(0.25)),
               ),
               child: TextField(
                 controller: _controller,
-                style: GoogleFonts.inter(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w500),
+                style: GoogleFonts.plusJakartaSans(
+                    color: inputColor, fontSize: 13.5),
                 maxLines: 5,
                 minLines: 1,
                 keyboardType: TextInputType.multiline,
-                decoration: const InputDecoration(
-                  hintText: 'Tanya Apex...',
-                  hintStyle: TextStyle(color: Colors.grey),
+                decoration: InputDecoration(
+                  hintText: 'Tanyakan sesuatu ke Apex...',
+                  hintStyle: GoogleFonts.plusJakartaSans(
+                      color: hintColor, fontSize: 13),
                   border: InputBorder.none,
                 ),
               ),
@@ -489,20 +755,24 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
               height: 48,
               width: 48,
               decoration: BoxDecoration(
-                gradient: _isLoading ? null : AppColors.kGradientSunset,
-                color: _isLoading ? Colors.grey[300] : null,
-                shape: BoxShape.circle,
-                boxShadow: _isLoading ? [] : [
-                  BoxShadow(
-                    color: AppColors.kPrimaryOrange.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color:
+                    _isLoading ? Colors.white10 : AppColors.kPrimaryGold,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: _isLoading
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: AppColors.kPrimaryGold.withOpacity(0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
               ),
               child: Icon(
                 Icons.send_rounded,
-                color: Colors.white,
+                color: _isLoading
+                    ? Colors.white30
+                    : const Color(0xFF1A1A2E),
                 size: 20,
               ),
             ),
@@ -517,14 +787,19 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Riwayat Chat?', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Hapus Riwayat Chat?',
+            style: TextStyle(
+                color: Colors.black87, fontWeight: FontWeight.bold)),
         content: const Text(
-            'Semua percakapan dengan AI Coach akan dihapus dan sesi baru akan dimulai.', style: TextStyle(color: Colors.black54)),
+            'Semua percakapan dengan Apex akan dihapus dan sesi baru akan dimulai.',
+            style: TextStyle(color: Colors.black54)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            child:
+                const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -532,16 +807,28 @@ class _AiCoachScreenState extends State<AiCoachScreen> {
               _clearHistory();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF9800),
+              backgroundColor: AppColors.kPrimaryOrange,
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: const Text('Hapus',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
+}
+
+// ── Models ─────────────────────────────────────────────────────────────
+
+class _QuestAction {
+  final String icon;
+  final String label;
+  final String prompt;
+  const _QuestAction(
+      {required this.icon, required this.label, required this.prompt});
 }
 
 class _ParsedFoodRec {
@@ -604,7 +891,7 @@ class _TypingDotState extends State<_TypingDot>
           width: 6,
           height: 6,
           decoration: BoxDecoration(
-            color: const Color(0xFFFF9800).withOpacity(0.8),
+            color: AppColors.kPrimaryGold.withOpacity(0.8),
             shape: BoxShape.circle,
           ),
         ),

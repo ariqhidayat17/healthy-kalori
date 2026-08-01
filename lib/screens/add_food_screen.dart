@@ -13,6 +13,7 @@ import '../services/gemini_service.dart';
 import '../services/gamification_service.dart';
 import '../utils/app_snackbar.dart';
 import '../widgets/rpg_app_bar.dart';
+import '../widgets/add_food_widgets.dart';
 
 /// Screen "Tambah Makanan" full-page — menggantikan AlertDialog lama.
 /// Sesuai desain Stitch: search bar rounded, grid "Temuan Cepat",

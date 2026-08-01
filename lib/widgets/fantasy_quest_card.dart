@@ -27,6 +27,10 @@ class FantasyQuestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppColors.kDarkText : Colors.black87;
+    final subColor = isDark ? AppColors.kDarkTextSub : Colors.black54;
+
     return FantasyCard(
       padding: const EdgeInsets.all(16),
       border: Border(
@@ -51,14 +55,14 @@ class FantasyQuestCard extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: Colors.black87,
+                        color: textColor,
                       ),
                     ),
                     Text(
                       progressText,
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: Colors.black54,
+                        color: subColor,
                       ),
                     ),
                   ],
@@ -97,7 +101,7 @@ class FantasyQuestCard extends StatelessWidget {
                 height: 8,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: isDark ? AppColors.kDarkSurface2 : Colors.grey[100],
                   borderRadius: BorderRadius.circular(100),
                 ),
               ),

@@ -7,6 +7,8 @@ import '../models/calorie_provider.dart';
 import '../services/gamification_service.dart';
 import '../utils/prefs_service.dart';
 import '../widgets/rpg_app_bar.dart';
+import '../widgets/fantasy_card.dart';
+import '../widgets/fantasy_quest_card.dart';
 
 /// MissionScreen — diterjemahkan presisi dari misi_harian/code.html.
 ///
@@ -187,78 +189,52 @@ class _MissionScreenState extends State<MissionScreen> {
             const SizedBox(height: 12),
 
             // ── Quest 1: Protein ────────────────────────────────────────────
-            _QuestCard(
-              iconWidget: Icon(Icons.restaurant_rounded, color: AppColors.stOnTertiaryContainer, size: 28),
-              iconBg: AppColors.stTertiaryContainer,
+            FantasyQuestCard(
               title: 'Makan ${tProt}g Protein',
-              xpLabel: '+50 XP',
-              xpBg: AppColors.stTertiaryFixed,
-              xpFg: AppColors.stOnTertiaryFixedVariant,
+              progressText: '${prot}g / ${tProt}g',
               progress: protPct,
-              progressLabel: '${prot}g / ${tProt}g',
-              progressClass: 'gold',
+              xpReward: 50,
               isCompleted: protPct >= 1.0,
               isClaimed: _proteinClaimed,
+              icon: '🥩',
               onClaim: protPct >= 1.0 && !_proteinClaimed ? () => _claimMission('protein', 50, 'Makan Protein') : null,
-              parchment: parchment,
-              isDark: isDark,
             ).animate().fadeIn(delay: 100.ms).slideX(begin: 0.05),
             const SizedBox(height: 12),
 
             // ── Quest 2: Kalori ─────────────────────────────────────────────
-            _QuestCard(
-              iconWidget: Icon(Icons.local_fire_department_rounded, color: AppColors.stOnSecondaryContainer, size: 28),
-              iconBg: AppColors.stSecondaryContainer,
+            FantasyQuestCard(
               title: 'Total Kalori < $tCal',
-              xpLabel: calOk ? '✓ Claimed' : '+40 XP',
-              xpBg: calOk ? AppColors.stSurfaceContainerHigh : AppColors.stSecondaryFixed,
-              xpFg: calOk ? AppColors.stOutline : AppColors.stOnSecondaryFixedVariant,
+              progressText: calOk ? '$cal kcal (Terjaga)' : '$cal kcal',
               progress: calOk ? 1.0 : (cal / tCal).clamp(0.0, 1.0),
-              progressLabel: calOk ? '$cal kcal ✓' : '$cal kcal',
-              progressClass: 'gold',
+              xpReward: 40,
               isCompleted: calOk,
               isClaimed: _calorieClaimed,
+              icon: '🔥',
               onClaim: calOk && !_calorieClaimed ? () => _claimMission('calorie', 40, 'Kalori Terjaga') : null,
-              parchment: parchment,
-              isDark: isDark,
-              dimmed: !calOk && !_calorieClaimed,
             ).animate().fadeIn(delay: 200.ms).slideX(begin: 0.05),
             const SizedBox(height: 12),
 
             // ── Quest 3: Air ─────────────────────────────────────────────────
-            _QuestCard(
-              iconWidget: const Icon(Icons.water_drop_rounded, color: Color(0xFF1976D2), size: 28),
-              iconBg: const Color(0xFFE3F2FD),
+            FantasyQuestCard(
               title: 'Minum ${(tWater / 1000).toStringAsFixed(1)}L Air',
-              xpLabel: '+20 XP',
-              xpBg: AppColors.stPrimaryContainer,
-              xpFg: AppColors.stOnPrimaryContainer,
+              progressText: '${(water / 1000).toStringAsFixed(1)}L / ${(tWater / 1000).toStringAsFixed(1)}L',
               progress: waterPct,
-              progressLabel: '${(water / 1000).toStringAsFixed(1)}L / ${(tWater / 1000).toStringAsFixed(1)}L',
-              progressClass: 'mana',
+              xpReward: 20,
               isCompleted: waterPct >= 1.0,
               isClaimed: _waterClaimed,
+              icon: '💧',
               onClaim: waterPct >= 1.0 && !_waterClaimed ? () => _claimMission('water', 20, 'Hydration Hero') : null,
-              parchment: parchment,
-              isDark: isDark,
-              dimmed: waterPct < 1.0,
             ).animate().fadeIn(delay: 300.ms).slideX(begin: 0.05),
             const SizedBox(height: 24),
 
             // ── 3. Peti Harta Harian ────────────────────────────────────────
             GestureDetector(
               onTap: canClaimChest ? () => _claimChest(completed) : null,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24), // p-lg
-                decoration: BoxDecoration(
-                  color: parchment,
-                  borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-                  border: Border.all(
-                    color: AppColors.stPrimaryContainer.withOpacity(0.5),
-                    width: 2,
-                    style: BorderStyle.solid, // dashed emulated via solid
-                  ),
+              child: FantasyCard(
+                padding: const EdgeInsets.all(24),
+                border: Border.all(
+                  color: AppColors.stPrimaryContainer.withOpacity(0.5),
+                  width: 2,
                 ),
                 child: Column(
                   children: [
@@ -383,14 +359,8 @@ class _XPCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return FantasyCard(
       padding: const EdgeInsets.all(AppColors.stSpaceMd),
-      decoration: BoxDecoration(
-        color: parchment,
-        borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-        boxShadow: [BoxShadow(color: AppColors.stOutline.withOpacity(0.2), blurRadius: 0, offset: const Offset(0, 4))],
-        border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.15), width: 1),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -462,161 +432,6 @@ class _XPCard extends StatelessWidget {
   }
 }
 
-// ── Quest Card ────────────────────────────────────────────────────────────────
-class _QuestCard extends StatelessWidget {
-  final Widget iconWidget;
-  final Color iconBg;
-  final String title, xpLabel, progressLabel, progressClass;
-  final Color xpBg, xpFg;
-  final double progress;
-  final bool isCompleted, isClaimed;
-  final VoidCallback? onClaim;
-  final Color parchment;
-  final bool isDark;
-  final bool dimmed;
-
-  const _QuestCard({
-    required this.iconWidget, required this.iconBg,
-    required this.title, required this.xpLabel, required this.progressLabel,
-    required this.xpBg, required this.xpFg, required this.progressClass,
-    required this.progress, required this.isCompleted, required this.isClaimed,
-    required this.onClaim, required this.parchment, required this.isDark,
-    this.dimmed = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: dimmed ? 0.8 : 1.0,
-      child: Container(
-        padding: const EdgeInsets.all(AppColors.stSpaceMd),
-        decoration: BoxDecoration(
-          color: parchment,
-          borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-          border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.15), width: 1),
-          boxShadow: [BoxShadow(color: AppColors.stOutline.withOpacity(0.2), blurRadius: 0, offset: const Offset(0, 4))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // w-12 h-12 rounded-lg icon box
-                    Container(
-                      width: 48, height: 48,
-                      decoration: BoxDecoration(
-                        color: iconBg,
-                        borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
-                        border: Border.all(color: AppColors.stOutlineVariant.withOpacity(0.3)),
-                      ),
-                      child: Center(child: iconWidget),
-                    ),
-                    const SizedBox(width: AppColors.stSpaceMd),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title, style: GoogleFonts.inter(
-                          fontSize: 16, fontWeight: FontWeight.w700,
-                          color: isDark ? AppColors.kDarkText : AppColors.stOnSurface,
-                        )),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: xpBg,
-                            borderRadius: BorderRadius.circular(AppColors.stRadiusDefault),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(isClaimed ? Icons.check_circle_rounded : Icons.star_rounded,
-                                size: 12, color: xpFg),
-                              const SizedBox(width: 2),
-                              Text(xpLabel, style: GoogleFonts.nunitoSans(
-                                fontSize: 10, fontWeight: FontWeight.w700, color: xpFg,
-                              )),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                // Claim button (gold-gradient) atau check icon jika claimed
-                if (isClaimed)
-                  Icon(Icons.check_circle_rounded, color: AppColors.stPrimary, size: 24)
-                else if (onClaim != null)
-                  GestureDetector(
-                    onTap: onClaim,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(
-                        // gold-gradient: #ffdea8→#ffb800, border-bottom 3px #7c5800
-                        gradient: const LinearGradient(
-                          colors: [AppColors.stPrimaryFixed, AppColors.stPrimaryContainer],
-                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                        ),
-                        borderRadius: BorderRadius.circular(AppColors.stRadiusLg),
-                        border: const Border(bottom: BorderSide(color: AppColors.stPrimary, width: 3)),
-                      ),
-                      child: Text('Claim', style: GoogleFonts.nunitoSans(
-                        fontSize: 12, fontWeight: FontWeight.w700,
-                        color: AppColors.stOnPrimaryContainer,
-                      )),
-                    ),
-                  )
-                else
-                  Icon(Icons.hourglass_top_rounded,
-                    color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline, size: 22),
-              ],
-            ),
-            const SizedBox(height: AppColors.stSpaceSm),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(isClaimed ? 'BERHASIL' : 'PROGRESS', style: GoogleFonts.nunitoSans(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
-                )),
-                Text(progressLabel, style: GoogleFonts.nunitoSans(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: isDark ? AppColors.kDarkTextSub : AppColors.stOutline,
-                )),
-              ],
-            ),
-            const SizedBox(height: 4),
-            // h-2 progress bar, gradient gold/mana
-            Stack(children: [
-              Container(height: 8, decoration: BoxDecoration(
-                color: isDark ? AppColors.kDarkSurface2 : AppColors.stSurfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
-              )),
-              FractionallySizedBox(
-                widthFactor: progress,
-                child: Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: progressClass == 'mana'
-                          ? [const Color(0xFF2490FF), const Color(0xFF73E1FF)]
-                          : [AppColors.stPrimaryContainer, AppColors.stPrimaryFixed],
-                    ),
-                    borderRadius: BorderRadius.circular(AppColors.stRadiusFull),
-                    boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.5), blurRadius: 2, offset: const Offset(0, 1))],
-                  ),
-                ),
-              ),
-            ]),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ── Weekly Quest Card ─────────────────────────────────────────────────────────
 class _WeeklyQuestCard extends StatelessWidget {
   final IconData icon;
@@ -633,15 +448,10 @@ class _WeeklyQuestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return FantasyCard(
       width: 260, // min-w-[260px]
       padding: const EdgeInsets.all(AppColors.stSpaceMd),
-      decoration: BoxDecoration(
-        color: parchment,
-        borderRadius: BorderRadius.circular(AppColors.stRadiusXl),
-        border: Border(left: BorderSide(color: borderColor, width: 4)),
-        boxShadow: [BoxShadow(color: AppColors.stOutline.withOpacity(0.2), blurRadius: 0, offset: const Offset(0, 4))],
-      ),
+      border: Border(left: BorderSide(color: borderColor, width: 4)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
